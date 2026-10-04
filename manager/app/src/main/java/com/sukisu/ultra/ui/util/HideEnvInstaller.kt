@@ -22,6 +22,13 @@ object HideEnvInstaller {
      */
     const val MODULE_URL: String = "https://raw.githubusercontent.com/anos-develop/PaperSU-Main/main/Magisk-Modle/hide-module.zip"
 
+    /**
+     * 备用镜像（同一份文件，走 jsDelivr CDN）。
+     * 国内直连 raw.githubusercontent.com 经常失败，所以脚本会先试上面那个，
+     * 失败再试这个；两个都试过才算失败。
+     */
+    const val MODULE_URL_MIRROR: String = "https://cdn.jsdelivr.net/gh/anos-develop/PaperSU-Main@main/Magisk-Modle/hide-module.zip"
+
     /** 占位地址检测：还没换成真地址时，直接告诉用户，别去网上瞎请求。 */
     fun isPlaceholder(): Boolean = MODULE_URL.contains("example.com")
 
@@ -49,22 +56,28 @@ object HideEnvInstaller {
         // 只用 /system/bin/sh + 常见下载工具，避免依赖 App 侧的网络栈
         val script = """
             set -e
-            URL='$MODULE_URL'
             D=/data/local/tmp/papersu_hide
             rm -rf "${'$'}D"
             mkdir -p "${'$'}D"
             cd "${'$'}D"
-            if command -v curl >/dev/null 2>&1; then
-                curl -fL --retry 2 -o hide-module.zip "${'$'}URL"
-            elif command -v wget >/dev/null 2>&1; then
-                wget -O hide-module.zip "${'$'}URL"
-            elif command -v busybox >/dev/null 2>&1; then
-                busybox wget -O hide-module.zip "${'$'}URL"
-            else
-                echo "NODL"
-                exit 2
+            download() {
+                rm -f hide-module.zip
+                if command -v curl >/dev/null 2>&1; then
+                    curl -fL --retry 2 --connect-timeout 15 -o hide-module.zip "${'$'}1"
+                elif command -v wget >/dev/null 2>&1; then
+                    wget -T 20 -O hide-module.zip "${'$'}1"
+                elif command -v busybox >/dev/null 2>&1; then
+                    busybox wget -T 20 -O hide-module.zip "${'$'}1"
+                else
+                    return 2
+                fi
+            }
+            download '$MODULE_URL' || true
+            if [ ! -s hide-module.zip ]; then
+                echo "[-] 直链失败，改用镜像重试…"
+                download '$MODULE_URL_MIRROR' || true
             fi
-            [ -s hide-module.zip ] || { echo "EMPTY"; exit 3; }
+            [ -s hide-module.zip ] || { echo "NODL"; exit 2; }
             echo "SIZE=${'$'}(stat -c%s hide-module.zip 2>/dev/null || echo '?')"
             ksud module install "${'$'}D/hide-module.zip"
             echo "INSTALLED"
