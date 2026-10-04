@@ -1,0 +1,2 @@
+# PaperSU-Main
+这个一个KernelSU的分支，基于KernelSU和SukuSU开发，拥有更多的功能，并且保留了SukiSU的Built-in/GKI模式，解决了新版KSU去除刷写AnyKernel3的功能，并且拥有自定义主题和类似于7kimiSU的雪花雨，我们只提供RedMI K20 Pro的non-gki内核，其他的ak3则需要自己编译
