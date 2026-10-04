@@ -1,0 +1,209 @@
+﻿warning: in the working copy of 'D:\Users\code\Desktop\PaperSU\Action-Build-SukiSU-Ultra\.github\workflows\Build Kernel OnePlus.yml.orig', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\Users\code\Desktop\PaperSU\Action-Build-SukiSU-Ultra\.github\workflows\Build Kernel OnePlus.yml', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/D:\\Users\\code\\Desktop\\PaperSU\\Action-Build-SukiSU-Ultra\\.github\\workflows\\Build Kernel OnePlus.yml.orig" "b/D:\\Users\\code\\Desktop\\PaperSU\\Action-Build-SukiSU-Ultra\\.github\\workflows\\Build Kernel OnePlus.yml"
+index bec035cb..3cb632f9 100644
+--- "a/D:\\Users\\code\\Desktop\\PaperSU\\Action-Build-SukiSU-Ultra\\.github\\workflows\\Build Kernel OnePlus.yml.orig"	
++++ "b/D:\\Users\\code\\Desktop\\PaperSU\\Action-Build-SukiSU-Ultra\\.github\\workflows\\Build Kernel OnePlus.yml"	
+@@ -553,6 +553,97 @@ jobs:
+           # 内核版本的数字转换，仅前两位不包含 SUBLEVEL
+           echo "KERNEL_SHORT_PATCH_VERSION=$(echo $NEW_VERSION | cut -d. -f1,2 | tr '.' '_')" >> $GITHUB_ENV
+ 
++      # ════════════════════════════════════════════════════════════════════════
++      #  版本 → 功能 能力表（单一事实来源）
++      # ════════════════════════════════════════════════════════════════════════
++      # 改动原因：原先"按内核版本决定开哪个功能"的判断散落在 10 处内联字符串比较里，
++      # 而且**只认 5.10 与 6.12 两个具体值**（见旧代码的
++      # `KMI != 'android16-6.12'` / `KMI = 'android12-5.10'` / `KERNEL_VERSION == '5.10'`）。
++      # 5.15 / 6.1 没有显式分支，只能靠"既不等于 5.10 也不等于 6.12"的隐式 fallback
++      # 借用别的版本的逻辑 —— 这正是"每个内核都要对应内核版本"没做到的地方。
++      #
++      # 现在收敛成下面这张表：**每个受支持的 KMI 都有一行明确的取值**，
++      # 表里没有的 KMI 直接报错停下，而不是跑到深处才因为找不到补丁文件而失败。
++      #
++      # 表格依据是 patches/ 目录里**真实存在的补丁文件**，不是推测：
++      #   patches/bbrv3/  → android12-5.10 / android13-5.15 / android14-6.1 / android15-6.6
++      #                     （**没有** 6.12 → 6.12 关掉 BBRv3；**没有** android14-5.15）
++      #   patches/ntsync/ → 上述四类 + android14-5.15 + android16-6.12
++      #
++      # 顺带修掉一个会硬失败的点：旧的 Apply BBRv3 条件是 `KMI != 'android16-6.12'`，
++      # 于是 android14-5.15（bbrv3 目录里没有它的补丁）也会进去，
++      # 而那一行 `patch -p1 < ...-BBRv3-to-$KMI.patch` **没有 `|| true`** ⇒ 直接失败。
++      # 现在由 CAP_BBRV3 决定，它反映的是"补丁文件到底存不存在"。
++      #
++      # 能力位与旧内联判断的对应（**行为保持不变**）：
++      #   CAP_BBRV3       旧 `KMI != 'android16-6.12'` → 但按补丁文件存在性取值
++      #   CAP_TCP_BBR3    旧 `KMI != 'android16-6.12'`（CONFIG_TCP_CONG_BBR3）
++      #   CAP_HMBIRD_GKI  旧 `VERSION>6 || (VERSION==6 && PATCHLEVEL>=6)`（即 ≥6.6）
++      #   CAP_NTSYNC_612  旧 `KMI == 'android16-6.12'`
++      #   CAP_V6PLUS      旧 `VERSIONLEVEL >= 6`（UNICODE_BYPASS 选哪份补丁）
++      #   CAP_V510/515/61/66/612  给"还要结合 CPU 判断"的地方，以及两处 5.10 专用修补
++      #                   （旧写法 `KMI == 'android12-5.10'`）
++      #   CAP_V515_LEGACY  5.15 旧版 C 库修补（patches/fix_5.15.legacy）。
++      #                   ⚠️ 旧写法是 `KMI == 'android13-5.15'` —— **KMI 专有**，
++      #                   虽然补丁注释说的是"5.15.0~5.15.123"，但 android14-5.15 原本拿不到它，
++      #                   这里保持原样不放宽，避免顺手改动适用范围。
++      # ════════════════════════════════════════════════════════════════════════
++      - name: Resolve Version Capabilities
++        run: |
++          KMI="${KMI:-}"
++          if [ -z "$KMI" ]; then
++            echo "::error::未能确定 KMI —— build.config* 与 ACK_SHA 都没给出"
++            exit 1
++          fi
++          echo "KMI                  : $KMI"
++          echo "内核版本             : ${KERNEL_VERSION:-未知} (VERSIONLEVEL=${VERSIONLEVEL:-?} PATCHLEVEL=${PATCHLEVEL:-?})"
++          echo "短版本键(本次启用)   : ${KERNEL_SHORT_PATCH_VERSION:-未生成}"
++
++          # 交叉校验：KMI 里声明的版本 vs common/Makefile 里的实际版本。
++          # 正常情况下两者一致（android12-5.10 ↔ VERSION=5 PATCHLEVEL=10）。
++          # 不一致说明清单选错了、或源码与清单对不上 —— 这种情况必须让人看见，
++          # 因为下面那张表是按 KMI 取值的，而报错信息/伪装版本是按 Makefile 走的。
++          MK_VER="${VERSIONLEVEL:-}.${PATCHLEVEL:-}"
++          KMI_VER="${KMI#*-}"
++          if [ -n "${VERSIONLEVEL:-}" ] && [ "$MK_VER" != "$KMI_VER" ]; then
++            echo "::warning::KMI 声明内核 $KMI_VER，但 common/Makefile 是 $MK_VER —— 两者不一致，请确认清单是否选对"
++          fi
++
++          case "$KMI" in
++            android12-5.10)
++              CAP_V510=1 CAP_V515=0 CAP_V515_LEGACY=0 CAP_V61=0 CAP_V66=0 CAP_V612=0 CAP_V6PLUS=0
++              CAP_BBRV3=1 CAP_TCP_BBR3=1 CAP_HMBIRD_GKI=0 CAP_NTSYNC_612=0 ;;
++            android13-5.15)
++              CAP_V510=0 CAP_V515=1 CAP_V515_LEGACY=1 CAP_V61=0 CAP_V66=0 CAP_V612=0 CAP_V6PLUS=0
++              CAP_BBRV3=1 CAP_TCP_BBR3=1 CAP_HMBIRD_GKI=0 CAP_NTSYNC_612=0 ;;
++            android14-5.15)
++              CAP_V510=0 CAP_V515=1 CAP_V515_LEGACY=0 CAP_V61=0 CAP_V66=0 CAP_V612=0 CAP_V6PLUS=0
++              CAP_BBRV3=0 CAP_TCP_BBR3=1 CAP_HMBIRD_GKI=0 CAP_NTSYNC_612=0 ;;
++            android14-6.1)
++              CAP_V510=0 CAP_V515=0 CAP_V515_LEGACY=0 CAP_V61=1 CAP_V66=0 CAP_V612=0 CAP_V6PLUS=1
++              CAP_BBRV3=1 CAP_TCP_BBR3=1 CAP_HMBIRD_GKI=0 CAP_NTSYNC_612=0 ;;
++            android15-6.6)
++              CAP_V510=0 CAP_V515=0 CAP_V515_LEGACY=0 CAP_V61=0 CAP_V66=1 CAP_V612=0 CAP_V6PLUS=1
++              CAP_BBRV3=1 CAP_TCP_BBR3=1 CAP_HMBIRD_GKI=1 CAP_NTSYNC_612=0 ;;
++            android16-6.12)
++              CAP_V510=0 CAP_V515=0 CAP_V515_LEGACY=0 CAP_V61=0 CAP_V66=0 CAP_V612=1 CAP_V6PLUS=1
++              CAP_BBRV3=0 CAP_TCP_BBR3=0 CAP_HMBIRD_GKI=1 CAP_NTSYNC_612=1 ;;
++            *)
++              echo "::error::这台设备的内核不在受支持列表里：KMI=$KMI"
++              echo "::error::受支持：android12-5.10 / android13-5.15 / android14-5.15 / android14-6.1 / android15-6.6 / android16-6.12"
++              echo "::error::要加新版本，请先确认 patches/bbrv3 与 patches/ntsync 下有对应补丁文件，然后在本表加一行。"
++              exit 1 ;;
++          esac
++
++          echo "--- 能力位 ---"
++          for cap in CAP_V510 CAP_V515 CAP_V515_LEGACY CAP_V61 CAP_V66 CAP_V612 CAP_V6PLUS \
++                     CAP_BBRV3 CAP_TCP_BBR3 CAP_HMBIRD_GKI CAP_NTSYNC_612; do
++            eval "val=\${$cap}"
++            echo "$cap=$val" >> "$GITHUB_ENV"
++            printf '  %-16s = %s\n' "$cap" "$val"
++          done
++          echo "✅ 能力位已写入 GITHUB_ENV"
++
+       - name: Rust Version Handling
+         run: |
+           cd kernel_workspace/kernel_platform
+@@ -798,7 +889,7 @@ jobs:
+ 
+           cd ./common
+ 
+-          if [ "$KMI" == "android13-5.15" ] && [ "$SUBLEVEL" -lt 123 ]; then
++          if [ "$CAP_V515_LEGACY" = "1" ] && [ "$SUBLEVEL" -lt 123 ]; then
+             echo "修复内核版本为5.15.0~5.15.123仅支持旧版C库造成的一些bug"
+             cp "${GITHUB_WORKSPACE}/kernel_workspace/Action-Build/patches/fix_5.15.legacy" ./fix_5.15.legacy.patch
+             patch -p1 < fix_5.15.legacy.patch
+@@ -821,7 +912,7 @@ jobs:
+ 
+       # OGKI转换GKI，无需修改 dtbo 开机
+       - name: Apply Convert HMBIRD_OGKI to HMBIRD_GKI
+-        if: ${{ (fromJSON(env.VERSIONLEVEL) > 6 || (fromJSON(env.VERSIONLEVEL) == 6 && fromJSON(env.PATCHLEVEL) >= 6)) && github.event.inputs.SCHED_HMBIRD == 'false' }}
++        if: ${{ env.CAP_HMBIRD_GKI == '1' && github.event.inputs.SCHED_HMBIRD == 'false' }}
+         run: |
+           PATCH_DIR="${GITHUB_WORKSPACE}/kernel_workspace/Action-Build/patches"
+           cd kernel_workspace/kernel_platform/common
+@@ -839,12 +930,12 @@ jobs:
+           check_rejects .
+ 
+       - name: Apply BBRv3
+-        if: ${{ github.event.inputs.CCM == 'true' && env.KMI != 'android16-6.12' }}
++        if: ${{ github.event.inputs.CCM == 'true' && env.CAP_BBRV3 == '1' }}
+         run: |
+           PATCH_DIR="${GITHUB_WORKSPACE}/kernel_workspace/Action-Build/patches"
+           cd kernel_workspace/kernel_platform/common
+           patch -p1 < "${PATCH_DIR}/bbrv3/0001-net-tcp-backport-BBRv3-to-$KMI.patch"
+-          if [ "$KMI" = "android12-5.10" ]; then
++          if [ "$CAP_V510" = "1" ]; then
+             if ! grep -qF 'int proc_dou8vec_minmax(' ./include/linux/sysctl.h; then
+               patch -p1 < "${PATCH_DIR}/bbrv3/sysctl_add_proc_dou8vec_minmax.patch"
+               patch -p1 < "${PATCH_DIR}/bbrv3/sysctl_fix_data-races_in_proc_dou8vec_minmax.patch"
+@@ -858,7 +949,7 @@ jobs:
+         run: |
+           PATCH_DIR="${GITHUB_WORKSPACE}/kernel_workspace/Action-Build/patches"
+           cd kernel_workspace/kernel_platform/common
+-          if [ "$VERSIONLEVEL" -lt 6 ]; then
++          if [ "$CAP_V6PLUS" = "0" ]; then
+             patch -p1 --forward < "${PATCH_DIR}/unicode_bypass_fix_6.1-.patch" || true
+           else
+             patch -p1 --forward < "${PATCH_DIR}/unicode_bypass_fix_6.1+.patch" || true
+@@ -890,7 +981,7 @@ jobs:
+           sed -i 's/^\(\t\)struct sysv_sem\b.*sysvsem;/\1\/\/ struct sysv_sem\t\t\tsysvsem;/' include/linux/sched.h
+           sed -i 's/^\(\t\)struct sysv_shm\b.*sysvshm;/\1\/\/ struct sysv_shm\t\t\tsysvshm;/' include/linux/sched.h
+ 
+-          if [ "$KMI" = "android12-5.10" ]; then
++          if [ "$CAP_V510" = "1" ]; then
+             echo "为 android12-5.10 修复 sysvipc KABI 绕过及 POSIX_MQUEUE ABI 填充问题..."
+             sed -i '/^\tconst struct sched_class\t\*sched_class;/a \\n#ifndef __GENKSYMS__\n\tstruct sysv_sem\t\t\tsysvsem;\n\tstruct sysv_shm\t\t\tsysvshm;\n#endif\n' include/linux/sched.h
+             sed -i 's/^\tunsigned long mq_bytes;\t\/\* How many bytes can be allocated to mqueue[?] \*\//\t\/\/unsigned long mq_bytes;\t\/* How many bytes can be allocated to mqueue? *\//' include/linux/sched/user.h
+@@ -916,7 +1007,7 @@ jobs:
+           echo "为 oplus_bsp_midas 模块返回幽灵任务以避免空指针崩溃..."
+           patch -p1 --forward < "${PATCH_DIR}/ghost-task-for-midas.patch" || true
+ 
+-          if [ "$KMI" = "android16-6.12" ]; then
++          if [ "$CAP_NTSYNC_612" = "1" ]; then
+             rm -f include/uapi/linux/ntsync.h
+             rm -f drivers/misc/ntsync.c
+             echo "补全 IPC NS 符号导出..."
+@@ -961,7 +1052,7 @@ jobs:
+ 
+           PATCH_DIR="${GITHUB_WORKSPACE}/kernel_workspace/SukiSU_patch/other/zram/zram_patch/${{ env.KERNEL_VERSION }}"
+           cd kernel_workspace/kernel_platform/common
+-          if [[ "$KERNEL_VERSION" == "5.10" && "${CPU}" == mt* ]]; then
++          if [[ "$CAP_V510" == "1" && "${CPU}" == mt* ]]; then
+             sed -i 's/select CRYPTO_LZO/depends on CRYPTO_LZO/' ./mm/oplus_mm/hybridswap_zram/Kconfig
+           fi
+           echo "正在打lz4kd补丁"
+@@ -1089,7 +1180,7 @@ jobs:
+           if [ "${{ github.event.inputs.CCM }}" = "true" ]; then
+             set_hide_config "CONFIG_TCP_CONG_ADVANCED=y"
+             set_config "CONFIG_TCP_CONG_BBR=y"
+-            if [ "$KMI" != "android16-6.12" ]; then
++            if [ "$CAP_TCP_BBR3" = "1" ]; then
+               set_config "CONFIG_TCP_CONG_BBR3=y"
+             fi
+             set_config "CONFIG_NET_SCH_FQ=y"
+@@ -1140,7 +1231,7 @@ jobs:
+ 
+           # IPSET & IPv6_NAT & TTL配置*
+           if [ "${{ github.event.inputs.NETFILTER }}" = "true" ]; then
+-            if [[ "$KERNEL_VERSION" != "6.12" && "${CPU}" != mt* ]]; then
++            if [[ "$CAP_V612" != "1" && "${CPU}" != mt* ]]; then
+               set_config "CONFIG_BPF_STREAM_PARSER=y"
+             fi
+             set_config "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y"
+@@ -1176,7 +1267,7 @@ jobs:
+           fi
+ 
+           # 构建依赖项调整及优化
+-          if [ "$KERNEL_VERSION" = "5.15" ] && [[ "$CPU" == mt* ]]; then
++          if [ "$CAP_V515" = "1" ] && [[ "$CPU" == mt* ]]; then
+             set_config "CONFIG_OPLUS_SYSTEM_KERNEL=y"
+             set_config "CONFIG_OPLUS_FEATURE_CMDLINE=m"
+             set_config "CONFIG_OPLUS_FEATURE_OPLUSBOOT=m"
+@@ -1216,7 +1307,7 @@ jobs:
+           done
+ 
+       - name: Disable GPUEB
+-        if: ${{ env.KERNEL_VERSION == '5.10' && startsWith(env.CPU, 'mt') }}
++        if: ${{ env.CAP_V510 == '1' && startsWith(env.CPU, 'mt') }}
+         run: |
+           echo "Disabling GPUEB for MTK kernel 5.10"
+           sed -i '/obj-y.*gpueb/d' kernel_workspace/kernel-5.10/drivers/gpu/mediatek/Makefile

@@ -37,6 +37,8 @@ import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.SystemUpdateAlt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -62,6 +64,24 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.preference.ArrowPreference
+import androidx.compose.material.icons.rounded.VisibilityOff
+import com.sukisu.ultra.ui.component.miuix.EditText
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import android.widget.Toast
+import com.sukisu.ultra.ui.util.WebAdminCli
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.compose.ui.platform.LocalContext
+import com.sukisu.ultra.ui.security.Stealth
+import com.sukisu.ultra.ui.security.restartUiFresh
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
@@ -368,6 +388,225 @@ fun SettingPagerMiuix(
                                 checked = uiState.isKernelUmountEnabled,
                                 onCheckedChange = actions.onSetKernelUmountEnabled
                             )
+
+                            // paperSU: hidden mode. Turning it on masks Natives.isManager so
+                            // the whole UI drops to "not installed"; the dialer secret code
+                            // brings it back. The current code is shown in the summary so the
+                            // user knows exactly what to dial.
+                            val stealthContext = LocalContext.current
+                            var stealthOn by remember { mutableStateOf(Stealth.isEnabled()) }
+                            SwitchPreference(
+                                title = stringResource(id = R.string.settings_stealth_enabled),
+                                summary = stringResource(id = R.string.settings_stealth_enabled_summary) +
+                                        "\n" + stringResource(
+                                    id = R.string.settings_stealth_code_summary,
+                                    Stealth.effectiveCode()
+                                ),
+                                startAction = {
+                                    Icon(
+                                        Icons.Rounded.VisibilityOff,
+                                        modifier = Modifier.padding(end = 6.dp),
+                                        contentDescription = stringResource(id = R.string.settings_stealth_enabled),
+                                        tint = colorScheme.onBackground
+                                    )
+                                },
+                                checked = stealthOn,
+                                onCheckedChange = { want ->
+                                    Stealth.setEnabled(want)
+                                    stealthOn = want
+                                    restartUiFresh(stealthContext)
+                                }
+                            )
+
+                            // paperSU: the dialer code that leaves hidden mode. Editable right
+                            // here so the user never has to leave the page. Only digits are kept;
+                            // emptying the field resets it to the shipped default.
+                            var stealthCode by remember { mutableStateOf(Stealth.effectiveCode()) }
+                            EditText(
+                                title = stringResource(id = R.string.settings_stealth_code),
+                                value = stealthCode,
+                                onValueChange = { raw ->
+                                    val digits = raw.filter { it.isDigit() }.take(12)
+                                    stealthCode = digits
+                                    if (digits.isBlank()) Stealth.clearCode() else Stealth.setCode(digits)
+                                },
+                                summary = stringResource(
+                                    id = R.string.settings_stealth_code_summary,
+                                    stealthCode.ifBlank { Stealth.DEFAULT_CODE }
+                                ),
+                                textHint = Stealth.DEFAULT_CODE,
+                            )
+
+                            // paperSU: local web manager. The service runs inside ksud, so
+                            // closing the app (or a one-tap clean-up) does not stop it. This page
+                            // only toggles it and hands out the keyed link; reading that link
+                            // needs a root shell, hence the off-main-thread fetch.
+                            val waContext = LocalContext.current
+                            val waScope = rememberCoroutineScope()
+                            var waOn by remember {
+                                mutableStateOf(
+                                    com.sukisu.ultra.data.repository.SettingsRepositoryImpl().webAdminEnabled
+                                )
+                            }
+                            var waUrl by remember { mutableStateOf("") }
+                            LaunchedEffect(waOn) {
+                                waUrl = if (waOn) {
+                                    withContext(Dispatchers.IO) {
+                                        WebAdminCli.syncPref(true)
+                                        WebAdminCli.url()
+                                    }
+                                } else {
+                                    ""
+                                }
+                            }
+                            val waTitle = stringResource(id = R.string.webadmin_title)
+                            val waSummaryOff = stringResource(id = R.string.webadmin_summary_off)
+                            val waReading = stringResource(id = R.string.webadmin_reading)
+                            val waLocalOnly = stringResource(id = R.string.webadmin_local_only)
+                            val waKsudFailed = stringResource(id = R.string.webadmin_ksud_failed)
+                            val waBrowserFailed = stringResource(id = R.string.webadmin_browser_failed)
+                            val waCopyOk = stringResource(id = R.string.webadmin_copy_ok)
+                            val waCopyFail = stringResource(id = R.string.webadmin_copy_fail)
+                            val waReset = stringResource(id = R.string.webadmin_reset)
+                            val waResetSummary = stringResource(id = R.string.webadmin_reset_summary)
+                            val waResetFailed = stringResource(id = R.string.webadmin_reset_failed)
+                            val waDiagnose = stringResource(id = R.string.webadmin_diagnose)
+                            val waDiagnoseSummary = stringResource(id = R.string.webadmin_diagnose_summary)
+                            val waCopyAllOk = stringResource(id = R.string.webadmin_copy_all_ok)
+                            Card(
+                                modifier = Modifier
+                                    .padding(top = 12.dp)
+                                    .fillMaxWidth(),
+                            ) {
+                                SwitchPreference(
+                                    title = waTitle,
+                                    summary = if (waOn) {
+                                        stringResource(
+                                            id = R.string.webadmin_summary_on,
+                                            waUrl.ifBlank { waReading }
+                                        ) + "\n\n" + waLocalOnly
+                                    } else {
+                                        waSummaryOff
+                                    },
+                                    startAction = {
+                                        Icon(
+                                            Icons.Rounded.Language,
+                                            modifier = Modifier.padding(end = 6.dp),
+                                            contentDescription = waTitle,
+                                            tint = colorScheme.onBackground
+                                        )
+                                    },
+                                    checked = waOn,
+                                    onCheckedChange = { want ->
+                                        waOn = want
+                                        com.sukisu.ultra.data.repository.SettingsRepositoryImpl().webAdminEnabled = want
+                                        waScope.launch {
+                                            val ok = withContext(Dispatchers.IO) { WebAdminCli.setEnabled(want) }
+                                            if (want) waUrl = withContext(Dispatchers.IO) { WebAdminCli.url() }
+                                            if (!ok) {
+                                                Toast.makeText(waContext, waKsudFailed, Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                    }
+                                )
+                                if (waOn) {
+                                    ArrowPreference(
+                                        title = stringResource(id = R.string.webadmin_open),
+                                        summary = stringResource(id = R.string.webadmin_open_summary),
+                                        startAction = {
+                                            Icon(
+                                                Icons.Rounded.OpenInNew,
+                                                modifier = Modifier.padding(end = 6.dp),
+                                                contentDescription = null,
+                                                tint = colorScheme.onBackground
+                                            )
+                                        },
+                                        onClick = {
+                                            WebAdminCli.openInBrowser(waContext, waUrl)?.let { err ->
+                                                Toast.makeText(
+                                                    waContext,
+                                                    String.format(waBrowserFailed, err),
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                            }
+                                        }
+                                    )
+                                    ArrowPreference(
+                                        title = stringResource(id = R.string.webadmin_copy),
+                                        summary = stringResource(id = R.string.webadmin_copy_summary),
+                                        startAction = {
+                                            Icon(
+                                                Icons.Rounded.ContentCopy,
+                                                modifier = Modifier.padding(end = 6.dp),
+                                                contentDescription = null,
+                                                tint = colorScheme.onBackground
+                                            )
+                                        },
+                                        onClick = {
+                                            val ok = WebAdminCli.copyUrl(waContext, waUrl)
+                                            Toast.makeText(
+                                                waContext,
+                                                if (ok) waCopyOk else waCopyFail,
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    )
+                                    ArrowPreference(
+                                        title = waReset,
+                                        summary = waResetSummary,
+                                        startAction = {
+                                            Icon(
+                                                Icons.Rounded.Key,
+                                                modifier = Modifier.padding(end = 6.dp),
+                                                contentDescription = null,
+                                                tint = colorScheme.onBackground
+                                            )
+                                        },
+                                        onClick = {
+                                            // Issue the new key AND copy it in one action, so there is
+                                            // no way to end up without a working link (no dialog needed).
+                                            waScope.launch {
+                                                val fresh = withContext(Dispatchers.IO) { WebAdminCli.resetToken() }
+                                                if (fresh.isBlank()) {
+                                                    Toast.makeText(waContext, waResetFailed, Toast.LENGTH_LONG).show()
+                                                } else {
+                                                    waUrl = fresh
+                                                    val copied = WebAdminCli.copyUrl(waContext, fresh)
+                                                    Toast.makeText(
+                                                        waContext,
+                                                        if (copied) waCopyOk else fresh,
+                                                        Toast.LENGTH_LONG
+                                                    ).show()
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+                                ArrowPreference(
+                                    title = waDiagnose,
+                                    summary = waDiagnoseSummary,
+                                    startAction = {
+                                        Icon(
+                                            Icons.Rounded.BugReport,
+                                            modifier = Modifier.padding(end = 6.dp),
+                                            contentDescription = null,
+                                            tint = colorScheme.onBackground
+                                        )
+                                    },
+                                    onClick = {
+                                        waScope.launch {
+                                            val report = withContext(Dispatchers.IO) { WebAdminCli.diagnose() }
+                                            val cm = waContext.getSystemService(
+                                                android.content.Context.CLIPBOARD_SERVICE
+                                            ) as android.content.ClipboardManager
+                                            cm.setPrimaryClip(
+                                                android.content.ClipData.newPlainText("paperSU webadmin", report)
+                                            )
+                                            Toast.makeText(waContext, waCopyAllOk, Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                )
+                            }
 
                             val selinuxHideSummary = when (uiState.selinuxHideStatus) {
                                 "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)

@@ -1271,3 +1271,401 @@ pub fn get_managed_features() -> Result<HashMap<String, Vec<String>>> {
 
     Ok(managed_features_map)
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// paperSU: webadmin support, ported from 7kimisu (GPL-3.0-or-later).
+//
+// The local web admin page lets a module's own web UI run shell commands and query
+// packages. Everything the page supplies is untrusted, so every value that ends up in a
+// shell string, and every env name/value, is validated below.
+//
+// ONE DELIBERATE DIFFERENCE FROM 7KIMISU: upstream resolves an app's human-readable name
+// by parsing its APK (`crate::res_label`, 713 lines). That is cosmetic, and porting it
+// would mean feeding untrusted APK files to a brand-new parser, so `packages_info` falls
+// back to the package name - which is what upstream documents as the fallback anyway.
+// ══════════════════════════════════════════════════════════════════════════════
+
+/// Options a module's web UI may pass to `ksu.exec`.
+#[derive(Default, Clone, Debug)]
+pub struct ExecOptions {
+    pub cwd: Option<String>,
+    pub env: Vec<(String, String)>,
+}
+
+/// Parse the options JSON handed over by a module web page. Malformed JSON is treated as
+/// empty, matching the manager app's lenient `optString` behaviour.
+pub fn parse_exec_options(options_json: &str) -> ExecOptions {
+    let mut out = ExecOptions::default();
+    let trimmed = options_json.trim();
+    if trimmed.is_empty() || trimmed == "{}" {
+        return out;
+    }
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(trimmed) else {
+        return out;
+    };
+    if let Some(cwd) = v.get("cwd").and_then(|c| c.as_str()) {
+        let c = cwd.trim();
+        if !c.is_empty()
+            && c.len() <= 4096
+            && !c.contains('\0')
+            && std::path::Path::new(c).is_absolute()
+        {
+            out.cwd = Some(c.to_string());
+        }
+    }
+    if let Some(env) = v.get("env").and_then(|e| e.as_object()) {
+        for (k, val) in env {
+            // The name has to be a legal env name, and the value is length-capped so a
+            // module cannot push hundreds of MB through here.
+            let name_ok = !k.is_empty()
+                && k.len() <= 128
+                && k.chars()
+                    .next()
+                    .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+                && k.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+            if !name_ok {
+                warn!("module web page sent an invalid env name, ignored: {k}");
+                continue;
+            }
+            let sval = match val {
+                serde_json::Value::String(sv) => sv.clone(),
+                other => other.to_string(),
+            };
+            if sval.len() > 8192 || sval.contains('\0') {
+                warn!("module web page sent an over-long or NUL-bearing env value, ignored: {k}");
+                continue;
+            }
+            out.env.push((k.clone(), sval));
+        }
+    }
+    out
+}
+
+/// Run busybox sh and **capture** stdout/stderr (the web admin page displays the output).
+///
+/// Unlike `exec_script`, this does not inherit the caller's stdio - it reads it back
+/// through pipes - and it is time limited: on timeout the whole **process group** is
+/// killed, so grandchildren spawned by the script die as well.
+fn run_busybox_capture(
+    args: &[&str],
+    cwd: &Path,
+    module_id: Option<&str>,
+    timeout: std::time::Duration,
+    extra_env: &[(String, String)],
+) -> Result<(i32, String, String)> {
+    use std::io::Read as _;
+    use std::process::Stdio;
+
+    let mut command = &mut Command::new(assets::BUSYBOX_PATH);
+    #[cfg(unix)]
+    {
+        command = unsafe {
+            command.pre_exec(|| {
+                detach_process_group(true);
+                switch_cgroups();
+                Ok(())
+            })
+        };
+    }
+    let mut child = command
+        .current_dir(cwd)
+        .args(args)
+        .envs(get_common_script_envs(module_id))
+        .envs(extra_env.iter().map(|(k, v)| (k.as_str(), v.as_str())))
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| anyhow!("failed to start {args:?}: {e}"))?;
+    let pid = child.id();
+
+    // One reader thread per pipe, otherwise a full pipe would block the child forever.
+    let h_out = child.stdout.take().map(|mut o| {
+        std::thread::spawn(move || {
+            let mut s = String::new();
+            let _ = o.read_to_string(&mut s);
+            s
+        })
+    });
+    let h_err = child.stderr.take().map(|mut e| {
+        std::thread::spawn(move || {
+            let mut s = String::new();
+            let _ = e.read_to_string(&mut s);
+            s
+        })
+    });
+
+    let start = std::time::Instant::now();
+    let mut code: i32 = -1;
+    let mut timed_out = false;
+    loop {
+        match child.try_wait() {
+            Ok(Some(st)) => {
+                code = st.code().unwrap_or(-1);
+                break;
+            }
+            Ok(None) => {
+                if start.elapsed() > timeout {
+                    timed_out = true;
+                    // A negative pid targets the whole process group.
+                    unsafe { libc::kill(-(pid as i32), libc::SIGKILL) };
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(80));
+            }
+            Err(e) => return Err(e.into()),
+        }
+    }
+
+    let stdout = h_out.and_then(|h| h.join().ok()).unwrap_or_default();
+    let mut stderr = h_err.and_then(|h| h.join().ok()).unwrap_or_default();
+    if timed_out {
+        use std::fmt::Write as _;
+        let _ = write!(stderr, "\n[timed out after {}s, killed]", timeout.as_secs());
+    }
+    Ok((code, stdout, stderr))
+}
+
+/// List installed package names (`kind`: `user` = third-party, `system`, anything else = all).
+/// Backs the module web UI's `ksu.listPackages()`.
+pub fn list_package_names(kind: &str) -> Result<Vec<String>> {
+    let flag = match kind {
+        "user" => " -3",
+        "system" => " -s",
+        _ => "",
+    };
+    let cmd = format!("/system/bin/pm list packages{flag}");
+    let (code, out, err) = run_busybox_capture(
+        &["sh", "-c", cmd.as_str()],
+        Path::new("/"),
+        None,
+        std::time::Duration::from_secs(30),
+        &[],
+    )?;
+    ensure!(code == 0, "pm list packages failed ({code}): {err}");
+    let mut names: Vec<String> = out
+        .lines()
+        .filter_map(|l| l.trim().strip_prefix("package:"))
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    names.sort();
+    names.dedup();
+    Ok(names)
+}
+
+/// Detailed info for a batch of packages. Backs the module web UI's `ksu.getPackagesInfo()`.
+///
+/// One shell round-trip for the whole batch instead of one exec per package.
+pub fn packages_info(names: &[String]) -> Result<Vec<serde_json::Value>> {
+    if names.is_empty() {
+        return Ok(Vec::new());
+    }
+    // Validate every package name: these get interpolated into a shell string, so this is
+    // what blocks injection.
+    let safe: Vec<&String> = names
+        .iter()
+        .filter(|n| {
+            !n.is_empty()
+                && n.len() <= 255
+                && n.chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_')
+        })
+        .collect();
+
+    // (1) "package -> uid + apk path" (from `pm list packages -U -f`, whose lines look like
+    //     `package:/data/app/xx/base.apk=com.foo uid:10123`) plus the system set - both from
+    //     calls we already have to make.
+    let (uid_map, apk_map, system_set) = {
+        let (code, out, _) = run_busybox_capture(
+            &["sh", "-c", "/system/bin/pm list packages -U -f"],
+            Path::new("/"),
+            None,
+            std::time::Duration::from_secs(30),
+            &[],
+        )?;
+        let mut uids: std::collections::HashMap<String, i64> =
+            std::collections::HashMap::default();
+        let mut apks: std::collections::HashMap<String, PathBuf> =
+            std::collections::HashMap::default();
+        if code == 0 {
+            for line in out.lines() {
+                let line = line.trim();
+                let Some(rest) = line.strip_prefix("package:") else {
+                    continue;
+                };
+                let mut it = rest.split_whitespace();
+                let Some(first) = it.next() else { continue };
+                // With -f the token is "path=pkg", without it just the package name.
+                // ⚠️ Split on the **last** '=': an APK path may itself contain '='
+                //    (seen on real devices: /data/app/~~SZR17Ey5KIEUYHBrwNvJvQ==/base.apk=com.x)
+                //    and splitting on the first one truncates the path.
+                let (apk, pkg) = match first.rsplit_once('=') {
+                    Some((path, pkg)) => (Some(path), pkg),
+                    None => (None, first),
+                };
+                let uid = it
+                    .find_map(|tok| tok.strip_prefix("uid:"))
+                    .and_then(|v| v.parse::<i64>().ok());
+                if let Some(u) = uid {
+                    uids.insert(pkg.to_string(), u);
+                }
+                if let Some(path) = apk {
+                    apks.insert(pkg.to_string(), PathBuf::from(path));
+                }
+            }
+        }
+        let (scode, sout, _) = run_busybox_capture(
+            &["sh", "-c", "/system/bin/pm list packages -s"],
+            Path::new("/"),
+            None,
+            std::time::Duration::from_secs(30),
+            &[],
+        )?;
+        let mut sys: std::collections::HashSet<String> = std::collections::HashSet::default();
+        if scode == 0 {
+            for line in sout.lines() {
+                if let Some(p) = line.trim().strip_prefix("package:") {
+                    sys.insert(p.trim().to_string());
+                }
+            }
+        }
+        (uids, apks, sys)
+    };
+
+    // (2) One shell for the whole batch's fields (much faster than one exec per package).
+    let mut script = String::new();
+    for n in &safe {
+        script.push_str("/system/bin/echo \"=== ");
+        script.push_str(n);
+        script.push_str("\"; /system/bin/dumpsys package ");
+        script.push_str(n);
+        script.push_str(
+            " 2>/dev/null | /system/bin/grep -E 'versionName=|versionCode=' | /system/bin/head -2; ",
+        );
+    }
+    let (_, out, _) = run_busybox_capture(
+        &["sh", "-c", script.as_str()],
+        Path::new("/"),
+        None,
+        std::time::Duration::from_secs(60),
+        &[],
+    )?;
+
+    // (3) Parse.
+    let mut result: Vec<serde_json::Value> = Vec::new();
+    let mut cur: Option<String> = None;
+    let mut fields: std::collections::HashMap<String, String> =
+        std::collections::HashMap::default();
+    let flush = |pkg: &str,
+                 f: &std::collections::HashMap<String, String>,
+                 sys: &std::collections::HashSet<String>,
+                 uids: &std::collections::HashMap<String, i64>,
+                 _apks: &std::collections::HashMap<String, PathBuf>,
+                 out: &mut Vec<serde_json::Value>| {
+        if pkg.is_empty() {
+            return;
+        }
+        if f.is_empty() {
+            out.push(serde_json::json!({
+                "packageName": pkg,
+                "error": "Package not found or inaccessible",
+            }));
+            return;
+        }
+        let vcode = f
+            .get("versionCode")
+            .and_then(|s| s.split_whitespace().next())
+            .and_then(|s| s.parse::<i64>().ok())
+            .unwrap_or(0);
+        let uid = uids.get(pkg).copied();
+        // paperSU: the package name stands in for the app label - see the block note above.
+        let app_label = pkg.to_string();
+        out.push(serde_json::json!({
+            "packageName": pkg,
+            "appLabel": app_label,
+            "versionName": f.get("versionName").cloned().unwrap_or_default(),
+            "versionCode": vcode,
+            "isSystem": sys.contains(pkg),
+            "uid": uid,
+        }));
+    };
+    for line in out.lines() {
+        let line = line.trim();
+        if let Some(name) = line.strip_prefix("=== ") {
+            if let Some(prev) = cur.take() {
+                flush(&prev, &fields, &system_set, &uid_map, &apk_map, &mut result);
+            }
+            fields.clear();
+            cur = Some(name.trim().to_string());
+            continue;
+        }
+        if let Some((k, v)) = line.split_once('=') {
+            let k = k.trim();
+            if k == "versionName" || k == "versionCode" || k == "userId" {
+                fields.insert(k.to_string(), v.trim().to_string());
+            }
+        }
+    }
+    if let Some(prev) = cur.take() {
+        flush(&prev, &fields, &system_set, &uid_map, &apk_map, &mut result);
+    }
+    Ok(result)
+}
+
+/// Web admin: run a module's `action.sh` and bring its output back.
+pub fn run_action_capture(id: &str) -> Result<(i32, String, String)> {
+    validate_module_id(id)?;
+    let path = Path::new(defs::MODULE_DIR)
+        .join(id)
+        .join(defs::MODULE_ACTION_SH);
+    ensure!(path.exists(), "this module has no action script (action.sh)");
+    ksucalls::ensure_uapi_version_matched()?;
+    info!("run action capture: {}", path.display());
+    run_busybox_capture(
+        &["sh", path.to_string_lossy().as_ref()],
+        path.parent().unwrap_or_else(|| Path::new("/")),
+        Some(id),
+        std::time::Duration::from_secs(120),
+        &[],
+    )
+}
+
+/// A module web page's `ksu.exec`: run one command as root **inside the module directory**
+/// and bring the output back (cwd = module dir, with KSU_MODULE and friends in the
+/// environment, matching the manager's WebView bridge).
+pub fn exec_in_module(id: &str, cmd: &str, options_json: &str) -> Result<(i32, String, String)> {
+    validate_module_id(id)?;
+    let dir = Path::new(defs::MODULE_DIR).join(id);
+    ensure!(dir.exists(), "module directory does not exist: {id}");
+    ksucalls::ensure_uapi_version_matched()?;
+    let opts = parse_exec_options(options_json);
+    let cwd = match &opts.cwd {
+        Some(c) => {
+            let p = PathBuf::from(c);
+            ensure!(p.exists(), "cwd from options does not exist: {c}");
+            p
+        }
+        None => dir,
+    };
+    info!(
+        "module webui exec: module={id} cwd={} env={} cmd={cmd}",
+        cwd.display(),
+        opts.env.len()
+    );
+    run_busybox_capture(
+        &["sh", "-c", cmd],
+        &cwd,
+        Some(id),
+        std::time::Duration::from_secs(60),
+        &opts.env,
+    )
+}
+
+/// The module list as JSON text (the web admin page uses it directly as `/api/modules`).
+pub fn list_modules_json() -> Result<String> {
+    let modules = list_module(defs::MODULE_DIR);
+    Ok(serde_json::to_string(&modules)?)
+}

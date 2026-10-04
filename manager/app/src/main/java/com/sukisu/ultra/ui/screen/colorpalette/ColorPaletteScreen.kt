@@ -62,6 +62,9 @@ fun ColorPaletteScreen() {
         onSetPageScale = viewModel::setPageScale,
         onSetModuleDescriptionMaxLines = viewModel::setModuleDescriptionMaxLines,
         onSetShowFullStatus = viewModel::setShowFullStatus,
+        onSetEnableSnowfall = viewModel::setEnableSnowfall,
+        onSetEnableTrollRain = viewModel::setEnableTrollRain,
+        onSetWallpaperEnabled = viewModel::setWallpaperEnabled,
     )
 
     when (LocalUiMode.current) {

@@ -7,12 +7,18 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowInsetsControllerCompat
 import com.materialkolor.dynamiccolor.ColorSpec
+import com.sukisu.ultra.data.repository.SettingsRepositoryImpl
+import com.sukisu.ultra.ui.util.WallpaperPrefs
+import com.sukisu.ultra.ui.util.WallpaperStore
+import com.sukisu.ultra.ui.util.rememberWallpaperSlot
 import com.sukisu.ultra.ui.webui.MonetColorsProvider
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
+import top.yukonga.miuix.kmp.theme.Colors
 import top.yukonga.miuix.kmp.theme.LocalContentColor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.ThemeColorSpec
@@ -77,11 +83,49 @@ fun MiuixKernelSUTheme(
                 }
             }
             MonetColorsProvider.UpdateCss()
-            CompositionLocalProvider(
-                LocalContentColor provides MiuixTheme.colorScheme.onBackground,
-            ) {
-                content()
+
+            // paperSU (ported from 7kimisu): translucency so the wallpaper shows through.
+            // With no wallpaper set surfaceAlpha stays 1f and this is a no-op.
+            val wallpaperRev = WallpaperPrefs.observe()
+            val wallpaperSlot = rememberWallpaperSlot()
+            val surfaceAlpha = remember(wallpaperRev, wallpaperSlot) {
+                val r = SettingsRepositoryImpl()
+                if (WallpaperStore.hasWallpaper(wallpaperSlot) && r.uiTranslucent) {
+                    r.uiTranslucentAlpha.coerceIn(0.02f, 1f)
+                } else 1f
+            }
+            val scheme = MiuixTheme.colorScheme
+            if (surfaceAlpha < 1f) {
+                MiuixTheme(scheme.translucent(surfaceAlpha)) {
+                    CompositionLocalProvider(
+                        LocalContentColor provides scheme.onBackground,
+                    ) {
+                        content()
+                    }
+                }
+            } else {
+                CompositionLocalProvider(
+                    LocalContentColor provides scheme.onBackground,
+                ) {
+                    content()
+                }
             }
         }
+    )
+}
+
+/**
+ * paperSU: make the large Miuix container colours translucent (ported from 7kimisu).
+ * Cards stay a bit more opaque than the page background so text remains readable.
+ */
+private fun Colors.translucent(alpha: Float): Colors {
+    val card = (alpha + (1f - alpha) * 0.28f).coerceAtMost(1f)
+    return copy(
+        background = background.copy(alpha = alpha),
+        surface = surface.copy(alpha = alpha),
+        surfaceVariant = surfaceVariant.copy(alpha = card),
+        surfaceContainer = surfaceContainer.copy(alpha = card),
+        surfaceContainerHigh = surfaceContainerHigh.copy(alpha = card),
+        surfaceContainerHighest = surfaceContainerHighest.copy(alpha = card),
     )
 }

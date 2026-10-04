@@ -1,22 +1,26 @@
 package com.sukisu.ultra.ui.component.bottombar
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cottage
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -29,6 +33,7 @@ import com.sukisu.ultra.ui.component.FloatingBottomBarItem
 import com.sukisu.ultra.ui.theme.LocalEnableFloatingBottomBar
 import com.sukisu.ultra.ui.theme.LocalEnableFloatingBottomBarBlur
 import com.sukisu.ultra.ui.util.BlurredBar
+import com.sukisu.ultra.ui.util.NavIcons
 import top.yukonga.miuix.kmp.basic.Badge
 import top.yukonga.miuix.kmp.basic.BadgedBox
 import top.yukonga.miuix.kmp.basic.Icon
@@ -108,10 +113,25 @@ fun BottomBarMiuix(
                     // can recolor them to the accent tone inside the indicator pill.
                     val badge = navigationBadgeFor(index, navigationBadge, floating = true)
                     val icon: @Composable () -> Unit = {
-                        Icon(
-                            imageVector = item.icon,
-                            contentDescription = item.label,
-                        )
+                        // paperSU: prefer a user-picked custom icon (7kimisu NavIcons);
+                        // fall back to the bundled vector icon, i.e. unchanged behaviour
+                        // whenever no custom icon has been chosen.
+                        val navContext = LocalContext.current
+                        val customIcon = remember(NavIcons.version, index) {
+                            NavIcons.load(navContext, NavIcons.keys.getOrElse(index) { "" }, 96)
+                        }
+                        if (customIcon != null) {
+                            Image(
+                                bitmap = customIcon,
+                                contentDescription = item.label,
+                                modifier = Modifier.size(24.dp),
+                            )
+                        } else {
+                            Icon(
+                                imageVector = item.icon,
+                                contentDescription = item.label,
+                            )
+                        }
                     }
                     if (badge != null) {
                         BadgedBox(badge = { badge() }) { icon() }

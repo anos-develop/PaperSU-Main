@@ -45,6 +45,26 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.ui.platform.LocalContext
+import com.sukisu.ultra.ui.security.Stealth
+import com.sukisu.ultra.ui.security.restartUiFresh
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import android.widget.Toast
+import com.sukisu.ultra.ui.util.WebAdminCli
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
@@ -124,6 +144,239 @@ fun SettingPagerMaterial(
                     )
                 )
             }
+
+            // paperSU: hidden mode. Turning it on masks Natives.isManager so the whole UI
+            // drops to "not installed"; the dialer secret code brings it back.
+            SegmentedColumn(
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 13.dp),
+                content = listOf(
+                    {
+                        val stealthContext = LocalContext.current
+                        var stealthOn by remember { mutableStateOf(Stealth.isEnabled()) }
+                        SegmentedSwitchItem(
+                            icon = Icons.Rounded.VisibilityOff,
+                            title = stringResource(id = R.string.settings_stealth_enabled),
+                            summary = stringResource(id = R.string.settings_stealth_enabled_summary) +
+                                    "\n" + stringResource(
+                                id = R.string.settings_stealth_code_summary,
+                                Stealth.effectiveCode()
+                            ),
+                            checked = stealthOn,
+                            onCheckedChange = { want ->
+                                Stealth.setEnabled(want)
+                                stealthOn = want
+                                restartUiFresh(stealthContext)
+                            }
+                        )
+                    }
+                )
+            )
+
+            // paperSU: the dialer code that leaves hidden mode. Editable right here so the
+            // user never has to leave the page. Only digits are kept; emptying the field
+            // resets it to the shipped default.
+            SegmentedColumn(
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 13.dp),
+                content = listOf(
+                    {
+                        var stealthCode by remember { mutableStateOf(Stealth.effectiveCode()) }
+                        OutlinedTextField(
+                            value = stealthCode,
+                            onValueChange = { raw ->
+                                val digits = raw.filter { it.isDigit() }.take(12)
+                                stealthCode = digits
+                                if (digits.isBlank()) Stealth.clearCode() else Stealth.setCode(digits)
+                            },
+                            label = { Text(stringResource(id = R.string.settings_stealth_code)) },
+                            supportingText = {
+                                Text(
+                                    stringResource(
+                                        id = R.string.settings_stealth_code_summary,
+                                        stealthCode.ifBlank { Stealth.DEFAULT_CODE }
+                                    )
+                                )
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp, vertical = 8.dp),
+                        )
+                    }
+                )
+            )
+
+            // paperSU: local web manager. The service runs inside ksud, so closing the app (or
+            // a one-tap clean-up) does not stop it. This page only toggles it and hands out the
+            // keyed link; reading that link needs a root shell, hence the off-main-thread fetch.
+            val waContext = LocalContext.current
+            val waScope = rememberCoroutineScope()
+            var waOn by remember {
+                mutableStateOf(
+                    com.sukisu.ultra.data.repository.SettingsRepositoryImpl().webAdminEnabled
+                )
+            }
+            var waUrl by remember { mutableStateOf("") }
+            LaunchedEffect(waOn) {
+                waUrl = if (waOn) {
+                    withContext(Dispatchers.IO) {
+                        WebAdminCli.syncPref(true)
+                        WebAdminCli.url()
+                    }
+                } else {
+                    ""
+                }
+            }
+            val waTitle = stringResource(id = R.string.webadmin_title)
+            val waSummaryOff = stringResource(id = R.string.webadmin_summary_off)
+            val waReading = stringResource(id = R.string.webadmin_reading)
+            val waLocalOnly = stringResource(id = R.string.webadmin_local_only)
+            val waKsudFailed = stringResource(id = R.string.webadmin_ksud_failed)
+            val waBrowserFailed = stringResource(id = R.string.webadmin_browser_failed)
+            val waCopyOk = stringResource(id = R.string.webadmin_copy_ok)
+            val waCopyFail = stringResource(id = R.string.webadmin_copy_fail)
+            val waReset = stringResource(id = R.string.webadmin_reset)
+            val waResetSummary = stringResource(id = R.string.webadmin_reset_summary)
+            val waResetFailed = stringResource(id = R.string.webadmin_reset_failed)
+            val waDiagnose = stringResource(id = R.string.webadmin_diagnose)
+            val waDiagnoseSummary = stringResource(id = R.string.webadmin_diagnose_summary)
+            val waCopyAllOk = stringResource(id = R.string.webadmin_copy_all_ok)
+            SegmentedColumn(
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 13.dp),
+                content = buildList {
+                    add {
+                        SegmentedSwitchItem(
+                            icon = Icons.Rounded.Language,
+                            title = waTitle,
+                            summary = if (waOn) {
+                                stringResource(
+                                    id = R.string.webadmin_summary_on,
+                                    waUrl.ifBlank { waReading }
+                                ) + "\n\n" + waLocalOnly
+                            } else {
+                                waSummaryOff
+                            },
+                            checked = waOn,
+                            onCheckedChange = { want ->
+                                waOn = want
+                                com.sukisu.ultra.data.repository.SettingsRepositoryImpl().webAdminEnabled = want
+                                waScope.launch {
+                                    val ok = withContext(Dispatchers.IO) { WebAdminCli.setEnabled(want) }
+                                    if (want) waUrl = withContext(Dispatchers.IO) { WebAdminCli.url() }
+                                    if (!ok) {
+                                        Toast.makeText(waContext, waKsudFailed, Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            }
+                        )
+                    }
+                    if (waOn) {
+                        add {
+                            SegmentedListItem(
+                                onClick = {
+                                    WebAdminCli.openInBrowser(waContext, waUrl)?.let { err ->
+                                        Toast.makeText(
+                                            waContext,
+                                            String.format(waBrowserFailed, err),
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                },
+                                headlineContent = { Text(stringResource(id = R.string.webadmin_open)) },
+                                supportingContent = {
+                                    Text(stringResource(id = R.string.webadmin_open_summary))
+                                },
+                                leadingContent = {
+                                    Icon(
+                                        Icons.Rounded.OpenInNew,
+                                        contentDescription = null,
+                                        modifier = Modifier.padding(end = 12.dp)
+                                    )
+                                }
+                            )
+                        }
+                        add {
+                            SegmentedListItem(
+                                onClick = {
+                                    val ok = WebAdminCli.copyUrl(waContext, waUrl)
+                                    Toast.makeText(
+                                        waContext,
+                                        if (ok) waCopyOk else waCopyFail,
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                },
+                                headlineContent = { Text(stringResource(id = R.string.webadmin_copy)) },
+                                supportingContent = {
+                                    Text(stringResource(id = R.string.webadmin_copy_summary))
+                                },
+                                leadingContent = {
+                                    Icon(
+                                        Icons.Rounded.ContentCopy,
+                                        contentDescription = null,
+                                        modifier = Modifier.padding(end = 12.dp)
+                                    )
+                                }
+                            )
+                        }
+                        add {
+                            SegmentedListItem(
+                                onClick = {
+                                    // Issue the new key AND copy it in one action, so there is no
+                                    // way to end up without a working link (no dialog needed).
+                                    waScope.launch {
+                                        val fresh = withContext(Dispatchers.IO) { WebAdminCli.resetToken() }
+                                        if (fresh.isBlank()) {
+                                            Toast.makeText(waContext, waResetFailed, Toast.LENGTH_LONG).show()
+                                        } else {
+                                            waUrl = fresh
+                                            val copied = WebAdminCli.copyUrl(waContext, fresh)
+                                            Toast.makeText(
+                                                waContext,
+                                                if (copied) waCopyOk else fresh,
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                        }
+                                    }
+                                },
+                                headlineContent = { Text(waReset) },
+                                supportingContent = { Text(waResetSummary) },
+                                leadingContent = {
+                                    Icon(
+                                        Icons.Rounded.Key,
+                                        contentDescription = null,
+                                        modifier = Modifier.padding(end = 12.dp)
+                                    )
+                                }
+                            )
+                        }
+                    }
+                    add {
+                        SegmentedListItem(
+                            onClick = {
+                                waScope.launch {
+                                    val report = withContext(Dispatchers.IO) { WebAdminCli.diagnose() }
+                                    val cm = waContext.getSystemService(
+                                        android.content.Context.CLIPBOARD_SERVICE
+                                    ) as android.content.ClipboardManager
+                                    cm.setPrimaryClip(
+                                        android.content.ClipData.newPlainText("paperSU webadmin", report)
+                                    )
+                                    Toast.makeText(waContext, waCopyAllOk, Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            headlineContent = { Text(waDiagnose) },
+                            supportingContent = { Text(waDiagnoseSummary) },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Rounded.BugReport,
+                                    contentDescription = null,
+                                    modifier = Modifier.padding(end = 12.dp)
+                                )
+                            }
+                        )
+                    }
+                }
+            )
 
             SegmentedColumn(
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 13.dp),

@@ -77,6 +77,16 @@ object Natives {
     val isManager: Boolean
         external get
 
+    /**
+     * paperSU hidden mode.
+     *
+     * While this mask is set the native [isManager] reports `false`, so the entire
+     * manager UI degrades to "not installed" until the user enters the dialer secret
+     * code again. The real kernel permissions are untouched - this only disguises this
+     * app's own UI and does **not** hide the root signature from other apps.
+     */
+    external fun nativeSetStealthMask(enabled: Boolean)
+
     val isPrBuild: Boolean
         external get
 

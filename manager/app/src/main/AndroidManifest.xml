@@ -155,6 +155,29 @@
                 <action android:name="com.sukisu.ultra.magica.LAUNCH" />
             </intent-filter>
         </receiver>
+
+        <!-- paperSU hidden mode.
+             `*#*#<code>#*#*` in the dialer turns it off and brings the manager back.
+             SECRET_CODE is not a protected broadcast, so StealthReceiver validates the
+             sender before trusting the code (see senderTrusted()). -->
+        <receiver
+            android:name=".ui.security.StealthReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SECRET_CODE" />
+                <data android:scheme="android_secret_code" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Re-arms the mask after a reboot; MainActivity.onCreate also applies it on
+             every launch, so this is belt-and-braces rather than the only trigger. -->
+        <receiver
+            android:name=".ui.security.StealthBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

@@ -15,6 +15,9 @@ interface SettingsRepository {
     var enableSwipeDismiss: Boolean
     var pagerInterceptionMode: Int
     var enableBlur: Boolean
+    // paperSU: ported from 7kimisu's personalization set (snow / troll-rain overlays)
+    var enableSnowfall: Boolean
+    var enableTrollRain: Boolean
     var enableFloatingBottomBar: Boolean
     var enableFloatingBottomBarBlur: Boolean
     var enableNavigationBadge: Boolean
@@ -32,6 +35,32 @@ interface SettingsRepository {
     var showFullStatus: Boolean
     var autoJailbreak: Boolean
     var useSoftReboot: Boolean
+    // paperSU: hidden mode (app-side equivalent of 7kimisu's stealth mode)
+    var stealthEnabled: Boolean
+    var stealthCode: String
+    /**
+     * paperSU: the web manager switch (UI state only).
+     *
+     * The service itself runs inside **ksud**, configured by
+     * `/data/adb/ksu/webadmin.conf` and driven by `ksud webadmin on|off`. Keeping the switch
+     * here means closing the app, a one-tap clean-up or a reboot do not disturb the page.
+     */
+    var webAdminEnabled: Boolean
+    // paperSU: ported from 7kimisu's wallpaper system (ui/util/WallpaperStore.kt)
+    var wallpaperPath: String
+    var wallpaperKind: String
+    var wallpaperLandPath: String
+    var wallpaperLandKind: String
+    var wallpaperDim: Float
+    var wallpaperBlur: Float
+    var wallpaperSeeded: Boolean
+    var wallpaperSeed: Boolean
+    var wallpaperSeedColor: Int
+    // paperSU: ported from 7kimisu's translucent-UI support (ui/theme/*Theme.kt)
+    var uiTranslucent: Boolean
+    var uiTranslucentAlpha: Float
+    /** paperSU: derived from [wallpaperKind]; enabling seeds the built-in wallpaper. */
+    var wallpaperEnabled: Boolean
     val intentToken: String
 
     suspend fun getSuCompatStatus(): String

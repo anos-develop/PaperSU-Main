@@ -75,6 +75,13 @@ Java_com_sukisu_ultra_Natives_isManager(JNIEnv *env, jclass clazz) {
     return is_manager();
 }
 
+// paperSU: hidden-mode mask. Set from Kotlin by ui/security/Stealth.kt.
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_sukisu_ultra_Natives_nativeSetStealthMask(JNIEnv *env, jclass clazz, jboolean enabled) {
+    set_stealth_mask(enabled == JNI_TRUE);
+}
+
 extern "C"
 JNIEXPORT jboolean JNICALL
 Java_com_sukisu_ultra_Natives_isPrBuild(JNIEnv *env, jclass clazz) {

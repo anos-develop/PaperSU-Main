@@ -34,7 +34,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuOpen
+import androidx.compose.material.icons.rounded.AcUnit
 import androidx.compose.material.icons.rounded.AspectRatio
+import androidx.compose.material.icons.rounded.Cottage
+import androidx.compose.material.icons.rounded.Extension
+import androidx.compose.material.icons.rounded.Security
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.BlurOn
 import androidx.compose.material.icons.rounded.CallToAction
 import androidx.compose.material.icons.rounded.Colorize
@@ -47,6 +52,8 @@ import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.Swipe
 import androidx.compose.material.icons.rounded.ViewCarousel
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -62,6 +69,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
@@ -77,6 +85,7 @@ import com.sukisu.ultra.ui.component.miuix.ScaleDialog
 import com.sukisu.ultra.ui.theme.LocalEnableBlur
 import com.sukisu.ultra.ui.theme.keyColorOptions
 import com.sukisu.ultra.ui.util.BlurredBar
+import com.sukisu.ultra.ui.util.NavIcons
 import com.sukisu.ultra.ui.util.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
@@ -309,6 +318,157 @@ fun ColorPaletteScreenMiuix(
                                 }
                             )
                         }
+                        // paperSU: 7kimisu personalization overlays
+                        SwitchPreference(
+                            title = stringResource(id = R.string.settings_enable_snowfall),
+                            summary = stringResource(id = R.string.settings_enable_snowfall_summary),
+                            startAction = {
+                                Icon(
+                                    Icons.Rounded.AcUnit,
+                                    modifier = Modifier.padding(end = 6.dp),
+                                    contentDescription = stringResource(id = R.string.settings_enable_snowfall),
+                                    tint = colorScheme.onBackground
+                                )
+                            },
+                            checked = uiState.enableSnowfall,
+                            onCheckedChange = {
+                                actions.onSetEnableSnowfall(it)
+                            }
+                        )
+                        SwitchPreference(
+                            title = stringResource(id = R.string.settings_enable_troll_rain),
+                            summary = stringResource(id = R.string.settings_enable_troll_rain_summary),
+                            startAction = {
+                                Icon(
+                                    Icons.Rounded.WaterDrop,
+                                    modifier = Modifier.padding(end = 6.dp),
+                                    contentDescription = stringResource(id = R.string.settings_enable_troll_rain),
+                                    tint = colorScheme.onBackground
+                                )
+                            },
+                            checked = uiState.enableTrollRain,
+                            onCheckedChange = {
+                                actions.onSetEnableTrollRain(it)
+                            }
+                        )
+                        // paperSU: 7kimisu wallpaper system
+                        SwitchPreference(
+                            title = stringResource(id = R.string.settings_wallpaper_default),
+                            summary = stringResource(id = R.string.settings_wallpaper_default_summary),
+                            startAction = {
+                                Icon(
+                                    Icons.Rounded.Wallpaper,
+                                    modifier = Modifier.padding(end = 6.dp),
+                                    contentDescription = stringResource(id = R.string.settings_wallpaper_default),
+                                    tint = colorScheme.onBackground
+                                )
+                            },
+                            checked = uiState.wallpaperEnabled,
+                            onCheckedChange = {
+                                actions.onSetWallpaperEnabled(it)
+                            }
+                        )
+                        // paperSU: custom navigation icons (7kimisu NavIcons).
+                        // Turning a row on launches the system image picker; turning it off
+                        // clears that icon, which makes the bottom bar fall back to its
+                        // bundled vector icon again.
+                        val navIconContext = LocalContext.current
+                        var pendingNavIconKey by remember { mutableStateOf<String?>(null) }
+                        val navIconPicker = rememberLauncherForActivityResult(
+                            ActivityResultContracts.GetContent()
+                        ) { uri ->
+                            val key = pendingNavIconKey
+                            pendingNavIconKey = null
+                            if (uri != null && key != null) NavIcons.save(navIconContext, key, uri)
+                        }
+                        val navIconsRev = NavIcons.version
+                        val navIconSet = remember(navIconsRev) {
+                            NavIcons.keys.associateWith { NavIcons.has(navIconContext, it) }
+                        }
+                        SwitchPreference(
+                            title = stringResource(id = R.string.settings_nav_icon_home),
+                            summary = stringResource(id = R.string.settings_nav_icon_summary),
+                            startAction = {
+                                Icon(
+                                    Icons.Rounded.Cottage,
+                                    modifier = Modifier.padding(end = 6.dp),
+                                    contentDescription = stringResource(id = R.string.settings_nav_icon_home),
+                                    tint = colorScheme.onBackground
+                                )
+                            },
+                            checked = navIconSet["home"] == true,
+                            onCheckedChange = { want ->
+                                if (want) {
+                                    pendingNavIconKey = "home"
+                                    navIconPicker.launch("image/*")
+                                } else {
+                                    NavIcons.clear(navIconContext, "home")
+                                }
+                            }
+                        )
+                        SwitchPreference(
+                            title = stringResource(id = R.string.settings_nav_icon_superuser),
+                            summary = stringResource(id = R.string.settings_nav_icon_summary),
+                            startAction = {
+                                Icon(
+                                    Icons.Rounded.Security,
+                                    modifier = Modifier.padding(end = 6.dp),
+                                    contentDescription = stringResource(id = R.string.settings_nav_icon_superuser),
+                                    tint = colorScheme.onBackground
+                                )
+                            },
+                            checked = navIconSet["superuser"] == true,
+                            onCheckedChange = { want ->
+                                if (want) {
+                                    pendingNavIconKey = "superuser"
+                                    navIconPicker.launch("image/*")
+                                } else {
+                                    NavIcons.clear(navIconContext, "superuser")
+                                }
+                            }
+                        )
+                        SwitchPreference(
+                            title = stringResource(id = R.string.settings_nav_icon_module),
+                            summary = stringResource(id = R.string.settings_nav_icon_summary),
+                            startAction = {
+                                Icon(
+                                    Icons.Rounded.Extension,
+                                    modifier = Modifier.padding(end = 6.dp),
+                                    contentDescription = stringResource(id = R.string.settings_nav_icon_module),
+                                    tint = colorScheme.onBackground
+                                )
+                            },
+                            checked = navIconSet["module"] == true,
+                            onCheckedChange = { want ->
+                                if (want) {
+                                    pendingNavIconKey = "module"
+                                    navIconPicker.launch("image/*")
+                                } else {
+                                    NavIcons.clear(navIconContext, "module")
+                                }
+                            }
+                        )
+                        SwitchPreference(
+                            title = stringResource(id = R.string.settings_nav_icon_setting),
+                            summary = stringResource(id = R.string.settings_nav_icon_summary),
+                            startAction = {
+                                Icon(
+                                    Icons.Rounded.Settings,
+                                    modifier = Modifier.padding(end = 6.dp),
+                                    contentDescription = stringResource(id = R.string.settings_nav_icon_setting),
+                                    tint = colorScheme.onBackground
+                                )
+                            },
+                            checked = navIconSet["setting"] == true,
+                            onCheckedChange = { want ->
+                                if (want) {
+                                    pendingNavIconKey = "setting"
+                                    navIconPicker.launch("image/*")
+                                } else {
+                                    NavIcons.clear(navIconContext, "setting")
+                                }
+                            }
+                        )
                         SwitchPreference(
                             title = stringResource(id = R.string.settings_floating_bottom_bar),
                             summary = stringResource(id = R.string.settings_floating_bottom_bar_summary),

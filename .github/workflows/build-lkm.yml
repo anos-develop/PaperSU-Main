@@ -12,7 +12,23 @@ on:
         required: false
         default: ''
         type: string
+  # paperSU: a manual run must build the LKM with paperSU's OWN manager signing
+  # certificate, otherwise the produced kernelsu.ko only trusts the official
+  # SukiSU signer and the paperSU Manager would never be recognised by the kernel.
+  # Certificate: manager/key.jks (alias papersu), size 0x036d.
+  # Recompute both values with: .\papersu-signing.ps1
   workflow_dispatch:
+    inputs:
+      expected_size2:
+        description: 'Second accepted manager signature size (paperSU: 0x036d)'
+        required: false
+        default: '0x036d'
+        type: string
+      expected_hash2:
+        description: 'Second accepted manager signature sha256 (paperSU)'
+        required: false
+        default: '14ea1b98c9f693f282a05022b8cf02dcbd2dd8e28c9d6b97bd6acfda1352f82f'
+        type: string
 jobs:
   build-lkm:
     strategy:
@@ -29,5 +45,5 @@ jobs:
     uses: ./.github/workflows/ddk-lkm.yml
     with:
       kmi: ${{ matrix.kmi }}
-      expected_size2: ${{ inputs.expected_size2 || '' }}
-      expected_hash2: ${{ inputs.expected_hash2 || '' }}
+      expected_size2: ${{ inputs.expected_size2 || '0x036d' }}
+      expected_hash2: ${{ inputs.expected_hash2 || '14ea1b98c9f693f282a05022b8cf02dcbd2dd8e28c9d6b97bd6acfda1352f82f' }}

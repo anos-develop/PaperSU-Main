@@ -1,9 +1,11 @@
 package com.sukisu.ultra.ui.component.bottombar
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.material.icons.Icons
@@ -23,12 +25,18 @@ import androidx.compose.material3.ShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.sukisu.ultra.Natives
 import com.sukisu.ultra.R
 import com.sukisu.ultra.ui.LocalMainPagerState
+import com.sukisu.ultra.ui.util.NavIcons
 
 @Composable
 fun BottomBarMaterial(navigationBadge: NavigationBadgeState) {
@@ -60,10 +68,16 @@ fun BottomBarMaterial(navigationBadge: NavigationBadgeState) {
                     }
                 },
                 icon = {
+                    // paperSU: custom nav icon (7kimisu NavIcons) with vector fallback.
+                    val navContext = LocalContext.current
+                    val customIcon = remember(NavIcons.version, index) {
+                        NavIcons.load(navContext, NavIcons.keys.getOrElse(index) { "" }, 96)
+                    }
                     NavigationIconWithBadge(
                         icon = if (selected) selectedIcon else unselectedIcon,
                         contentDescription = stringResource(label),
                         badge = badgeFor(index, navigationBadge),
+                        customIcon = customIcon,
                     )
                 },
                 label = {
@@ -83,7 +97,21 @@ internal fun NavigationIconWithBadge(
     icon: ImageVector,
     contentDescription: String?,
     badge: NavBadge?,
+    customIcon: ImageBitmap? = null,
 ) {
+    // paperSU: draw the user-picked bitmap when present, otherwise the bundled vector
+    // icon - i.e. unchanged behaviour whenever no custom icon has been chosen.
+    val drawIcon: @Composable () -> Unit = {
+        if (customIcon != null) {
+            Image(
+                bitmap = customIcon,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(24.dp),
+            )
+        } else {
+            Icon(icon, contentDescription)
+        }
+    }
     if (badge != null) {
         BadgedBox(
             badge = {
@@ -101,9 +129,9 @@ internal fun NavigationIconWithBadge(
                 }
             }
         ) {
-            Icon(icon, contentDescription)
+            drawIcon()
         }
     } else {
-        Icon(icon, contentDescription)
+        drawIcon()
     }
 }

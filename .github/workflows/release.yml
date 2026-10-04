@@ -60,12 +60,29 @@ jobs:
                 mv "$KO" "lkm/$lkm_platform_name"
             fi
           done
+      # paperSU: an AnyKernel3 package needs the upstream runtime (META-INF/ + tools/, the
+      # latter being ~5.3 MB of ARM binaries by osm0sis) before it can be zipped. We do not
+      # commit those binaries, so vendor them here at the pinned commit. No-op when the
+      # directory is already populated or when it is not an AK3 package.
+      - name: Vendor AnyKernel3 runtime
+        run: |
+          for dir in AnyKernel3-*; do
+            if [ -d "$dir" ] && [ -x "$dir/fetch-tools.sh" ] && [ ! -f "$dir/tools/ak3-core.sh" ]; then
+              echo "----- Vendoring runtime for $dir -----"
+              (cd "$dir" && ./fetch-tools.sh)
+            fi
+          done
+
       - name: Zip AnyKernel3
         run: |
           for dir in AnyKernel3-*; do
             if [ -d "$dir" ]; then
               echo "----- Zip $dir -----"
-              (cd $dir && zip -r9 "$dir".zip ./* -x .git .gitignore ./*.zip && mv *.zip ..)
+              # Exclude our own helper files and AK3's placeholder files; LICENSE must stay
+              # in the zip (upstream requires it for binary redistribution).
+              (cd $dir && zip -r9 "$dir".zip ./* \
+                -x .git .gitignore ./*.zip ./fetch-tools.sh ./.ak3-commit ./README.md '*placeholder' \
+                && mv *.zip ..)
             fi
           done
 

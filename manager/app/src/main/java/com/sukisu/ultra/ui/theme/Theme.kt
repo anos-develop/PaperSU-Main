@@ -137,6 +137,11 @@ val LocalColorMode = staticCompositionLocalOf { 0 }
 
 val LocalEnableBlur = staticCompositionLocalOf { false }
 
+// paperSU: 7kimisu personalization overlays
+val LocalEnableSnowfall = staticCompositionLocalOf { false }
+
+val LocalEnableTrollRain = staticCompositionLocalOf { false }
+
 val LocalEnableFloatingBottomBar = staticCompositionLocalOf { false }
 
 val LocalEnableFloatingBottomBarBlur = staticCompositionLocalOf { false }

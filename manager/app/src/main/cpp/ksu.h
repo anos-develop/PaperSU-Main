@@ -30,6 +30,14 @@ bool is_late_load_mode();
 
 bool is_manager();
 
+// paperSU: app-side hidden mode mask. While it is set, is_manager() reports false so
+// the whole manager UI degrades to "not installed"; the dialer secret code clears it.
+// This only disguises this app's own UI - unlike 7kimisu's kernel-side stealth it does
+// NOT hide the root signature from other apps.
+void set_stealth_mask(bool enabled);
+
+bool stealth_mask_enabled();
+
 bool is_pr_build();
 
 using p_key_t = char[KSU_MAX_PACKAGE_NAME];

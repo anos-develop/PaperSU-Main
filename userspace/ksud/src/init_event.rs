@@ -23,6 +23,12 @@ pub fn on_post_data_fs() -> Result<()> {
 
     ksucalls::report_post_fs_data();
 
+    // paperSU: bring the local web admin page up if the user enabled it. It stays bound to
+    // 127.0.0.1 and requires the token from webadmin.conf, so this only starts a listener on
+    // the device itself. No-op when disabled (the default).
+    #[cfg(target_os = "android")]
+    crate::webadmin_ksud::start_if_enabled();
+
     utils::umask(0);
 
     // Clear all temporary module configs early

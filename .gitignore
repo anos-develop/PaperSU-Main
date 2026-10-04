@@ -8,3 +8,16 @@ __pycache__
 /dist
 /repack-config.json
 /userspace/ksud/.lkm_image_bootstrap.o
+
+# AnyKernel3 runtime — populated by AnyKernel3-paperSU/fetch-tools.sh from a pinned
+# upstream commit (osm0sis/AnyKernel3, BSD-style licence). NOT committed: it is ~5.3 MB of
+# third-party ARM binaries. .github/workflows/release.yml vendors it before zipping, and
+# the package README tells users to run fetch-tools.sh for local use.
+/AnyKernel3-paperSU/META-INF/
+/AnyKernel3-paperSU/tools/
+/AnyKernel3-paperSU/modules/
+/AnyKernel3-paperSU/patch/
+/AnyKernel3-paperSU/ramdisk/
+/AnyKernel3-paperSU/LICENSE
+/AnyKernel3-paperSU/.ak3-commit
+/AnyKernel3-paperSU/*.zip

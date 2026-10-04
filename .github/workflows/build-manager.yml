@@ -98,9 +98,15 @@ jobs:
 
     uses: ./.github/workflows/build-lkm.yml
 
+    # paperSU: on PR builds generate-key supplies a throw-away certificate; on
+    # branch/tag builds it supplies nothing, and the LKM must then be compiled
+    # with paperSU's own Manager certificate (manager/key.jks, alias papersu) or
+    # the resulting kernelsu.ko would only trust the official SukiSU signer and
+    # the paperSU Manager would never be recognised by the kernel.
+    # Recompute both values with: .\papersu-signing.ps1
     with:
-      expected_size2: ${{ needs.generate-key.outputs.expected_size || '' }}
-      expected_hash2: ${{ needs.generate-key.outputs.expected_hash || '' }}
+      expected_size2: ${{ needs.generate-key.outputs.expected_size || '0x036d' }}
+      expected_hash2: ${{ needs.generate-key.outputs.expected_hash || '14ea1b98c9f693f282a05022b8cf02dcbd2dd8e28c9d6b97bd6acfda1352f82f' }}
 
     secrets: inherit
 

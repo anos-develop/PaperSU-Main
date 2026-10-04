@@ -1,0 +1,270 @@
+# paperSU: build a kernel from source and package it as a flashable AnyKernel3 zip.
+#
+# WHY THIS EXISTS
+#   Kernel builds need Linux (make + a cross toolchain). This workflow does the whole chain
+#   on a GitHub runner, so it can be driven from a Windows machine with one click:
+#
+#     编译内核  →  自动按内核版本选工具链/目标  →  丢进 AnyKernel3 包  →  产出可刷的 zip
+#
+#   It calls kernel-build/build-kernel.sh, which reads VERSION/PATCHLEVEL straight out of the
+#   kernel's own Makefile and picks GCC for 4.x, Clang for 5.4, and LLVM=1 for 5.10+/6.x.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+#  ⚠️ 一个我无法在这里验证的点（如实说明）
+#
+#  默认工具链来源是 AOSP 的 android.googlesource.com。这台开发机在国内**访问不了**
+#  它（直连被墙，实测返回 000），所以我**没能实际验证过**下面那两个 URL 一定能下到东西。
+#  GitHub runner 在美国，正常是可达的；如果它在你那边也失败，会**明确报错停下**，
+#  而不是静默继续。真失败了就改用 toolchain_source=url，自己给一个可达的 tar.gz。
+# ─────────────────────────────────────────────────────────────────────────────
+name: Build Kernel + AnyKernel3
+
+on:
+  workflow_dispatch:
+    inputs:
+      # ---- 内核源码 ----
+      kernel_repo:
+        description: '内核源码仓库 URL（例：https://github.com/厂商/内核.git）'
+        required: true
+        type: string
+      kernel_ref:
+        description: '分支 / 标签 / 提交'
+        required: false
+        default: 'main'
+        type: string
+      defconfig:
+        description: 'defconfig 名（例：vendor_defconfig / gki_defconfig）'
+        required: true
+        type: string
+      arch:
+        description: '目标架构'
+        required: false
+        default: 'arm64'
+        type: string
+      target:
+        description: 'make 目标（留空 = 按内核版本自动选）'
+        required: false
+        default: ''
+        type: string
+      kmi:
+        description: '仅用于产物命名（例：android12-5.10）'
+        required: false
+        default: ''
+        type: string
+
+      # ---- paperSU / KernelSU ----
+      ksu_enable:
+        description: '内置 KernelSU（把 paperSU 的 kernel/ 集成进去）'
+        required: false
+        default: true
+        type: boolean
+      ksu_package:
+        description: '管理器包名 → KSU_MANAGER_PACKAGE'
+        required: false
+        default: 'top.becuy.eric.papersu'
+        type: string
+      ksu_size2:
+        description: '管理器签名大小 → KSU_EXPECTED_SIZE2'
+        required: false
+        default: '0x036d'
+        type: string
+      ksu_hash2:
+        description: '管理器签名 SHA-256 → KSU_EXPECTED_HASH2'
+        required: false
+        default: '14ea1b98c9f693f282a05022b8cf02dcbd2dd8e28c9d6b97bd6acfda1352f82f'
+        type: string
+
+      # ---- 工具链 ----
+      toolchain_source:
+        description: 'aosp = 自动取 AOSP Clang；url = 用 clang_url；runner = 用 runner 自带的 clang'
+        required: false
+        default: 'aosp'
+        type: choice
+        options: [aosp, url, runner]
+      clang_version:
+        description: 'AOSP Clang 版本（留空 = 自动取目录里最新的 clang-r*）'
+        required: false
+        default: ''
+        type: string
+      clang_url:
+        description: 'toolchain_source=url 时的 Clang tar.gz 直链'
+        required: false
+        default: ''
+        type: string
+
+      extra_config:
+        description: '额外打开的配置，逗号分隔（例：CONFIG_KPM=y）'
+        required: false
+        default: ''
+        type: string
+
+# 同一个内核仓库重复跑时，取消上一次没跑完的
+concurrency:
+  group: kernel-${{ github.ref }}-${{ inputs.kernel_repo }}-${{ inputs.kernel_ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      # ── 1. 本仓库：拿到 kernel-build/build-kernel.sh 与 AnyKernel3-paperSU/ ──
+      - name: Checkout paperSU (scripts + AnyKernel3 package)
+        uses: actions/checkout@v6
+
+      # ── 2. 腾磁盘：内核编译很吃空间，runner 默认那点不够 ──
+      - name: Free disk space
+        run: |
+          echo "--- before ---"; df -h /
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost \
+                      "${AGENT_TOOLSDIRECTORY:-/opt/hostedtoolcache}" || true
+          sudo apt-get clean
+          echo "--- after ---"; df -h /
+
+      # ── 3. 编译依赖 ──
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            bc bison flex libssl-dev libelf-dev zip unzip cpio \
+            python3 python3-pip rsync kmod git curl xz-utils lz4 zstd
+
+      # ── 4. 内核源码 ──
+      - name: Fetch kernel source
+        run: |
+          set -eu
+          # 浅取：内核仓库的历史动辄几个 GB，编译只需要那一份树
+          git clone --depth 1 --branch "${{ inputs.kernel_ref }}" \
+            "${{ inputs.kernel_repo }}" kernel-src \
+            || { echo "浅取失败，退回全量取指定 ref"; \
+                 git clone "${{ inputs.kernel_repo }}" kernel-src && \
+                 git -C kernel-src checkout "${{ inputs.kernel_ref }}"; }
+          echo "--- 探测到的内核版本 ---"
+          sed -n 's/^VERSION *= */VERSION=/p;s/^PATCHLEVEL *= */PATCHLEVEL=/p;s/^SUBLEVEL *= */SUBLEVEL=/p' kernel-src/Makefile
+
+      # ── 5. 工具链 ──
+      - name: Setup toolchain (AOSP Clang)
+        if: inputs.toolchain_source == 'aosp'
+        run: |
+          set -eu
+          # gitiles 的 +archive 接口只打包指定目录，比 clone 整个 prebuilts 仓库小得多。
+          # 版本号不写死：列目录挑最新的 clang-r*，免得我这边写死一个不存在的 tag。
+          BASE='https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86'
+          VER='${{ inputs.clang_version }}'
+          if [ -z "$VER" ]; then
+            echo "[+] 未指定 clang_version，自动解析最新版本"
+            VER=$(curl -fsSL "$BASE/+/refs/heads/main" \
+                  | grep -o 'clang-r[0-9]\{6,\}' | sort -u | tail -n1 || true)
+            [ -n "$VER" ] || { echo "ERROR: 无法从 $BASE 解析 clang 版本"; \
+                               echo "       这台 runner 访问不了 android.googlesource.com？"; \
+                               echo "       改用 toolchain_source=url 并提供 clang_url。"; exit 1; }
+          fi
+          echo "[+] 使用 $VER"
+          mkdir -p toolchain/clang
+          curl -fL --retry 3 -o clang.tar.gz "$BASE/+archive/refs/heads/main/$VER.tar.gz" \
+            || { echo "ERROR: 下载 $VER 失败（URL 或网络问题）"; exit 1; }
+          tar -xzf clang.tar.gz -C toolchain/clang
+          rm -f clang.tar.gz
+          toolchain/clang/bin/clang --version | head -n1
+
+      - name: Setup toolchain (custom URL)
+        if: inputs.toolchain_source == 'url'
+        run: |
+          set -eu
+          [ -n "${{ inputs.clang_url }}" ] || { echo "ERROR: 选了 url 但没给 clang_url"; exit 1; }
+          mkdir -p toolchain/clang
+          curl -fL --retry 3 -o clang.tar.gz "${{ inputs.clang_url }}" || { echo "ERROR: 下载失败"; exit 1; }
+          tar -xzf clang.tar.gz -C toolchain/clang
+          rm -f clang.tar.gz
+          # 有的包解出来多一层目录，统一成 toolchain/clang/bin/clang
+          if [ ! -x toolchain/clang/bin/clang ]; then
+            inner=$(find toolchain/clang -maxdepth 2 -type f -name clang | head -n1 || true)
+            [ -n "$inner" ] || { echo "ERROR: 包里找不到 clang"; exit 1; }
+            mv toolchain/clang "$(dirname "$inner")/../.." 2>/dev/null || true
+          fi
+          toolchain/clang/bin/clang --version | head -n1
+
+      - name: Setup toolchain (use runner clang)
+        if: inputs.toolchain_source == 'runner'
+        run: |
+          which clang ld.lld llvm-ar
+          clang --version | head -n1
+          # runner 自带的 clang 可能比内核要求的旧；旧内核 + 新 clang 常出问题，反之亦然
+          echo "注意：用 runner 自带 clang 属于「碰运气」，失败就换 toolchain_source=aosp"
+
+      # 4.x 走 GCC，需要 binutils；runner 上通常已有 aarch64 交叉工具
+      - name: Prepare binutils for GCC path
+        run: |
+          sudo apt-get install -y -qq --no-install-recommends gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu || true
+          aarch64-linux-gnu-ld --version | head -n1 || true
+
+      # ── 6. 组装参数并编译 ──
+      - name: Build kernel
+        env:
+          KSU_ENABLE: ${{ inputs.ksu_enable }}
+          KSU_PACKAGE: ${{ inputs.ksu_package }}
+          KSU_SIZE2: ${{ inputs.ksu_size2 }}
+          KSU_HASH2: ${{ inputs.ksu_hash2 }}
+          ARCH_IN: ${{ inputs.arch }}
+          DEFCONFIG_IN: ${{ inputs.defconfig }}
+          TARGET_IN: ${{ inputs.target }}
+          KMI_IN: ${{ inputs.kmi }}
+          EXTRA_CONFIG_IN: ${{ inputs.extra_config }}
+          TC_SOURCE: ${{ inputs.toolchain_source }}
+        run: |
+          set -eu
+          chmod +x kernel-build/build-kernel.sh AnyKernel3-paperSU/fetch-tools.sh
+
+          ARGS="--kernel-dir kernel-src --defconfig $DEFCONFIG_IN --arch $ARCH_IN --ak3 --out $PWD/kernel-out"
+          [ -n "$TARGET_IN" ] && ARGS="$ARGS --target $TARGET_IN"
+          [ -n "$KMI_IN" ]    && ARGS="$ARGS --kmi $KMI_IN"
+          [ -n "$EXTRA_CONFIG_IN" ] && ARGS="$ARGS --extra-config $EXTRA_CONFIG_IN"
+
+          # 工具链指向
+          case "$TC_SOURCE" in
+            aosp)
+              ARGS="$ARGS --clang-dir $PWD/toolchain/clang --cross-compile aarch64-linux-gnu-"
+              export PATH="$PWD/toolchain/clang/bin:$PATH" ;;
+            url)
+              ARGS="$ARGS --clang-dir $PWD/toolchain/clang --cross-compile aarch64-linux-gnu-"
+              export PATH="$PWD/toolchain/clang/bin:$PATH" ;;
+            runner)
+              ARGS="$ARGS --cross-compile aarch64-linux-gnu-" ;;
+          esac
+
+          if [ "$KSU_ENABLE" = "true" ]; then
+            ARGS="$ARGS --ksu-src $PWD --ksu-package $KSU_PACKAGE --ksu-size2 $KSU_SIZE2 --ksu-hash2 $KSU_HASH2"
+          fi
+
+          echo "=== build-kernel.sh $ARGS ==="
+          # shellcheck disable=SC2086
+          ./kernel-build/build-kernel.sh $ARGS
+
+      # ── 7. 产物 ──
+      - name: Show what was produced
+        run: |
+          echo "--- AK3 package ---"
+          ls -la AnyKernel3-paperSU/ | sed -n '1,40p'
+          echo "--- zips ---"
+          find . -maxdepth 2 -name '*AnyKernel3*.zip' -printf '%p  %s bytes\n' || true
+
+      - name: Upload AnyKernel3 zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: paperSU-Kernel-AnyKernel3
+          # build-kernel.sh --ak3 writes the zip next to the output dir, i.e. the repo root
+          path: '*.zip'
+          if-no-files-found: error
+          retention-days: 30
+
+      # 编译失败时把内核日志传上来，省得只能看到"exit 1"
+      - name: Upload kernel build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kernel-build-log
+          path: |
+            kernel-out/**/*.log
+            kernel-out/.config
+          if-no-files-found: ignore
+          retention-days: 7

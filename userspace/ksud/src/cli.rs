@@ -32,6 +32,13 @@ enum Commands {
         command: Module,
     },
 
+    /// Manage the local web admin page (loopback 127.0.0.1 only)
+    #[cfg(target_os = "android")]
+    Webadmin {
+        #[command(subcommand)]
+        command: Webadmin,
+    },
+
     /// Trigger `post-fs-data` event
     PostFsData,
 
@@ -313,6 +320,34 @@ enum Sepolicy {
     Check {
         /// sepolicy statements
         sepolicy: String,
+    },
+}
+
+/// paperSU local web admin. The access token lives in the request path, so `Url` prints the
+/// full link (treat it as a secret); `ResetToken` invalidates previously shared links.
+#[cfg(target_os = "android")]
+#[derive(clap::Subcommand, Debug)]
+enum Webadmin {
+    /// Turn the local web admin page on and start the service
+    On,
+    /// Turn it off and stop the service
+    Off,
+    /// Show whether it is enabled, the port, and whether a token is set
+    Status,
+    /// Print the URL including the access token
+    Url,
+    /// Generate a new access token (old links stop working)
+    ResetToken,
+    /// Re-read the config and restart the service if needed
+    Sync,
+    /// Restart the service
+    Restart,
+    /// Run the service in the foreground (used by the daemon; not for direct use)
+    #[command(hide = true)]
+    Serve {
+        /// Port to bind on 127.0.0.1; defaults to the configured/first free port
+        #[arg(long)]
+        port: Option<u16>,
     },
 }
 
@@ -806,10 +841,65 @@ pub fn run() -> Result<()> {
 
         Commands::Insmod { module, params } => debug::insmod(&module, &params),
 
+        #[cfg(target_os = "android")]
+        Commands::Webadmin { command } => match command {
+            Webadmin::On => {
+                crate::webadmin_ksud::set_enabled(true)?;
+                crate::webadmin_ksud::ensure_running()?;
+                println!("webadmin: enabled (ksud keeps it running; the app is not required)");
+                // Print the full URL including the token - the caller needs it.
+                println!("{}", crate::webadmin::url());
+                Ok(())
+            }
+            Webadmin::Off => {
+                crate::webadmin_ksud::set_enabled(false)?;
+                crate::webadmin_ksud::stop_running()?;
+                println!("webadmin: disabled");
+                Ok(())
+            }
+            Webadmin::Status => {
+                println!("{}", crate::webadmin_ksud::status_text());
+                Ok(())
+            }
+            Webadmin::Url => {
+                // ⚠️ stdout contains the access token. Show it to the caller only; never
+                // redirect this into a log file.
+                println!("{}", crate::webadmin::url());
+                Ok(())
+            }
+            Webadmin::ResetToken => {
+                let url = crate::webadmin_ksud::reset_token_url()?;
+                println!("webadmin: access token reset (old links stop working)");
+                println!("{url}");
+                Ok(())
+            }
+            Webadmin::Sync => {
+                let restarted = crate::webadmin_ksud::sync_if_needed()?;
+                println!(
+                    "webadmin: {}",
+                    if restarted {
+                        "restarted (ksud changed or was not running)"
+                    } else {
+                        "already running the current build"
+                    }
+                );
+                Ok(())
+            }
+            Webadmin::Restart => {
+                crate::webadmin_ksud::set_enabled(true)?;
+                let ok = crate::webadmin_ksud::restart()?;
+                println!("webadmin: {}", if ok { "restarted" } else { "failed to start" });
+                Ok(())
+            }
+            Webadmin::Serve { port } => {
+                // The resident process itself: runs in the foreground.
+                crate::webadmin_ksud::serve_forever(port);
+            }
+        },
+
         Commands::Module { command } => {
             utils::switch_mnt_ns(1)?;
-            match command {
-                Module::Install { zip } => module::install_module(&zip),
+            match command {                Module::Install { zip } => module::install_module(&zip),
                 Module::UndoUninstall { id } => module::undo_uninstall_module(&id),
                 Module::Uninstall { id } => module::uninstall_module(&id),
                 Module::Enable { id } => module::enable_module(&id),

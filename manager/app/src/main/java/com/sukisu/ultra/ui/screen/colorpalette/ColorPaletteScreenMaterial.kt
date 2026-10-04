@@ -2,6 +2,8 @@ package com.sukisu.ultra.ui.screen.colorpalette
 
 import android.annotation.SuppressLint
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -48,7 +50,12 @@ import androidx.compose.material.icons.filled.Brightness3
 import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.Brightness7
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.rounded.AcUnit
 import androidx.compose.material.icons.rounded.AspectRatio
+import androidx.compose.material.icons.rounded.Cottage
+import androidx.compose.material.icons.rounded.Extension
+import androidx.compose.material.icons.rounded.Security
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.DesignServices
@@ -56,6 +63,13 @@ import androidx.compose.material.icons.rounded.Pin
 import androidx.compose.material.icons.rounded.Style
 import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.Swipe
+import androidx.compose.material.icons.rounded.Wallpaper
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import com.sukisu.ultra.ui.util.NavIcons
+import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.ViewCarousel
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Icon
@@ -318,6 +332,123 @@ fun ColorPaletteScreenMaterial(
                                 summary = stringResource(id = R.string.settings_show_fullstatus_summary),
                                 checked = state.showFullStatus,
                                 onCheckedChange = actions.onSetShowFullStatus
+                            )
+                        },
+                        // paperSU: 7kimisu personalization overlays
+                        {
+                            SegmentedSwitchItem(
+                                icon = Icons.Rounded.AcUnit,
+                                title = stringResource(id = R.string.settings_enable_snowfall),
+                                summary = stringResource(id = R.string.settings_enable_snowfall_summary),
+                                checked = uiState.enableSnowfall,
+                                onCheckedChange = actions.onSetEnableSnowfall
+                            )
+                        },
+                        {
+                            SegmentedSwitchItem(
+                                icon = Icons.Rounded.WaterDrop,
+                                title = stringResource(id = R.string.settings_enable_troll_rain),
+                                summary = stringResource(id = R.string.settings_enable_troll_rain_summary),
+                                checked = uiState.enableTrollRain,
+                                onCheckedChange = actions.onSetEnableTrollRain
+                            )
+                        },
+                        // paperSU: 7kimisu wallpaper system
+                        {
+                            SegmentedSwitchItem(
+                                icon = Icons.Rounded.Wallpaper,
+                                title = stringResource(id = R.string.settings_wallpaper_default),
+                                summary = stringResource(id = R.string.settings_wallpaper_default_summary),
+                                checked = uiState.wallpaperEnabled,
+                                onCheckedChange = actions.onSetWallpaperEnabled
+                            )
+                        }
+                    )
+                )
+            }
+
+            // paperSU: custom navigation icons (7kimisu NavIcons).
+            // Turning a row on launches the system image picker; turning it off clears that
+            // icon, which makes the bottom bar fall back to its bundled vector icon again.
+            item {
+                val navIconContext = LocalContext.current
+                var pendingNavIconKey by remember { mutableStateOf<String?>(null) }
+                val navIconPicker = rememberLauncherForActivityResult(
+                    ActivityResultContracts.GetContent()
+                ) { uri ->
+                    val key = pendingNavIconKey
+                    pendingNavIconKey = null
+                    if (uri != null && key != null) NavIcons.save(navIconContext, key, uri)
+                }
+                val navIconsRev = NavIcons.version
+                val navIconSet = remember(navIconsRev) {
+                    NavIcons.keys.associateWith { NavIcons.has(navIconContext, it) }
+                }
+                SegmentedColumn(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    content = listOf(
+                        {
+                            SegmentedSwitchItem(
+                                icon = Icons.Rounded.Cottage,
+                                title = stringResource(id = R.string.settings_nav_icon_home),
+                                summary = stringResource(id = R.string.settings_nav_icon_summary),
+                                checked = navIconSet["home"] == true,
+                                onCheckedChange = { want ->
+                                    if (want) {
+                                        pendingNavIconKey = "home"
+                                        navIconPicker.launch("image/*")
+                                    } else {
+                                        NavIcons.clear(navIconContext, "home")
+                                    }
+                                }
+                            )
+                        },
+                        {
+                            SegmentedSwitchItem(
+                                icon = Icons.Rounded.Security,
+                                title = stringResource(id = R.string.settings_nav_icon_superuser),
+                                summary = stringResource(id = R.string.settings_nav_icon_summary),
+                                checked = navIconSet["superuser"] == true,
+                                onCheckedChange = { want ->
+                                    if (want) {
+                                        pendingNavIconKey = "superuser"
+                                        navIconPicker.launch("image/*")
+                                    } else {
+                                        NavIcons.clear(navIconContext, "superuser")
+                                    }
+                                }
+                            )
+                        },
+                        {
+                            SegmentedSwitchItem(
+                                icon = Icons.Rounded.Extension,
+                                title = stringResource(id = R.string.settings_nav_icon_module),
+                                summary = stringResource(id = R.string.settings_nav_icon_summary),
+                                checked = navIconSet["module"] == true,
+                                onCheckedChange = { want ->
+                                    if (want) {
+                                        pendingNavIconKey = "module"
+                                        navIconPicker.launch("image/*")
+                                    } else {
+                                        NavIcons.clear(navIconContext, "module")
+                                    }
+                                }
+                            )
+                        },
+                        {
+                            SegmentedSwitchItem(
+                                icon = Icons.Rounded.Settings,
+                                title = stringResource(id = R.string.settings_nav_icon_setting),
+                                summary = stringResource(id = R.string.settings_nav_icon_summary),
+                                checked = navIconSet["setting"] == true,
+                                onCheckedChange = { want ->
+                                    if (want) {
+                                        pendingNavIconKey = "setting"
+                                        navIconPicker.launch("image/*")
+                                    } else {
+                                        NavIcons.clear(navIconContext, "setting")
+                                    }
+                                }
                             )
                         }
                     )

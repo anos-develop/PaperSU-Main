@@ -34,4 +34,8 @@ data class ColorPaletteScreenActions(
     val onSetPageScale: (Float) -> Unit,
     val onSetModuleDescriptionMaxLines: (Int) -> Unit,
     val onSetShowFullStatus: (Boolean) -> Unit,
+    // paperSU: 7kimisu personalization overlays
+    val onSetEnableSnowfall: (Boolean) -> Unit,
+    val onSetEnableTrollRain: (Boolean) -> Unit,
+    val onSetWallpaperEnabled: (Boolean) -> Unit,
 )

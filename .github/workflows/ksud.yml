@@ -55,8 +55,14 @@ jobs:
       env:
         ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
       run: |
+        # paperSU: ksud embeds the Manager package name (src/defs.rs
+        # DEFAULT_PACKAGE_NAME = env!("KSU_PACKAGE_NAME")). It MUST equal the
+        # Manager's applicationId, otherwise ksud looks for the wrong package.
+        # build.rs would silently fall back to com.sukisu.ultra.
         if [ "${{ github.event_name }}" = "pull_request" ]; then
           export KSU_PACKAGE_NAME="com.sukisu.ultra.pr"
+        else
+          export KSU_PACKAGE_NAME="top.becuy.eric.papersu"
         fi
         source .github/scripts/setup-rust-build.sh ${{ inputs.target }} 26
         cargo build --target $TRIPLE --release --manifest-path ./userspace/ksud/Cargo.toml

@@ -433,3 +433,273 @@ pub fn set_spoof_cpu(
     ksuctl(ksu_uapi::KSU_IOCTL_SET_SPOOF_CPU, &raw mut cmd)?;
     Ok(())
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// paperSU: webadmin support, ported from 7kimisu (GPL-3.0-or-later).
+//
+// The local web admin page (`webadmin.rs` / `webadmin_ksud.rs`) needs three things ksud
+// did not have: the allow/deny uid lists, the manager appid, and AppProfile read/write.
+// `KSU_IOCTL_{GET,SET}_APP_PROFILE` are `only_manager` in the kernel
+// (`kernel/supercall/dispatch.c`), so a plain root call gets EPERM - hence the
+// fork + setresuid(manager uid) + rescan-the-driver-fd dance below. That part is a
+// faithful copy of 7kimisu's implementation, exit-code contract included.
+// ══════════════════════════════════════════════════════════════════════════════
+
+/// Uids with `allow_su == true`, i.e. apps that were granted root.
+///
+/// The kernel's list ioctl already excludes the manager itself, so this really is
+/// "apps holding root".
+pub fn allow_list_uids() -> Vec<u32> {
+    list_uids(true)
+}
+
+/// Uids that only carry a **non-root** profile (`allow_su == false`).
+///
+/// The default non-root template (key `"$"`, uid 9999) also shows up here; callers filter
+/// it out by package name.
+pub fn deny_list_uids() -> Vec<u32> {
+    list_uids(false)
+}
+
+fn list_uids(allow: bool) -> Vec<u32> {
+    use ksu_uapi::{
+        KSU_IOCTL_NEW_GET_ALLOW_LIST, KSU_IOCTL_NEW_GET_DENY_LIST, ksu_new_get_allow_list_cmd,
+    };
+    let req = if allow {
+        KSU_IOCTL_NEW_GET_ALLOW_LIST
+    } else {
+        KSU_IOCTL_NEW_GET_DENY_LIST
+    };
+    // Ask for the count first.
+    let mut probe: ksu_new_get_allow_list_cmd = unsafe { std::mem::zeroed() };
+    probe.count = 0;
+    if ksuctl(req, &raw mut probe).is_err() {
+        return Vec::new();
+    }
+    let total = probe.total_count as usize;
+    if total == 0 {
+        return Vec::new();
+    }
+    // The struct ends in a flexible array (`uids[0]`), so allocate the extra bytes by hand.
+    // ⚠️ Allocate as u32: a Vec<u8> only guarantees 1-byte alignment, and writing struct
+    //    fields through such a pointer is a misaligned write (what clippy's
+    //    cast_ptr_alignment warns about - a real hazard, not a style nit).
+    let base = std::mem::size_of::<ksu_new_get_allow_list_cmd>();
+    let total = total.min(4096);
+    let need = base + total * std::mem::size_of::<u32>();
+    let mut buf: Vec<u32> = vec![0; need.div_ceil(std::mem::size_of::<u32>())];
+    let cmd = buf.as_mut_ptr().cast::<ksu_new_get_allow_list_cmd>();
+    unsafe {
+        (*cmd).count = total as u16;
+        (*cmd).total_count = 0;
+    }
+    if ksuctl(req, cmd).is_err() {
+        return Vec::new();
+    }
+    let n = unsafe { (*cmd).count as usize }.min(total);
+    let ptr = unsafe { (*cmd).uids.as_ptr() };
+    unsafe { std::slice::from_raw_parts(ptr, n) }.to_vec()
+}
+
+/// Read the manager app's appid (the kernel lets root ask for this one directly).
+pub fn manager_appid() -> anyhow::Result<u32> {
+    let mut cmd: ksu_uapi::ksu_get_manager_appid_cmd = unsafe { std::mem::zeroed() };
+    ksuctl(ksu_uapi::KSU_IOCTL_GET_MANAGER_APPID, &raw mut cmd)?;
+    Ok(cmd.appid)
+}
+
+/// Copy a Rust string into a fixed `char[N]` (truncate + NUL-terminate).
+pub fn write_cstr(buf: &mut [libc::c_char], s: &str) {
+    let n = s.len().min(buf.len().saturating_sub(1));
+    for (i, b) in s.as_bytes()[..n].iter().enumerate() {
+        buf[i] = *b as libc::c_char;
+    }
+    if let Some(last) = buf.get_mut(n) {
+        *last = 0;
+    }
+}
+
+/// Read a Rust string back out of a fixed `char[N]`.
+#[allow(clippy::unnecessary_cast)] // x86_64 has c_char = i8, aarch64 has u8: the cast is load-bearing
+pub fn read_cstr(buf: &[libc::c_char]) -> String {
+    let bytes: Vec<u8> = buf
+        .iter()
+        .take_while(|c| **c != 0)
+        .map(|c| *c as u8)
+        .collect();
+    String::from_utf8_lossy(&bytes).to_string()
+}
+
+/// Upper bound for the request struct handed to the manager-identity ioctl.
+const MANAGER_IOCTL_MAX: usize = 4096;
+
+/// Run one ioctl with manager identity.
+///
+/// `Ok(Some(bytes))` = success (the struct the kernel wrote back); `Ok(None)` = the kernel
+/// answered `-ENOENT`, which for a GET means "this uid has no profile" - a normal state,
+/// not an error.
+///
+/// The child **allocates nothing** (the safe thing to do after fork in a multithreaded
+/// process): the request sits in a fixed stack array and the reply travels back over a pipe.
+/// Exit codes: 10=setuid failed 11=no manager fd 12=kernel refused 13=write-back failed
+/// 20=-ENOENT.
+fn ioctl_as_manager(req: u32, input: &[u8]) -> anyhow::Result<Option<Vec<u8>>> {
+    anyhow::ensure!(input.len() <= MANAGER_IOCTL_MAX, "request struct too large");
+    let appid = manager_appid()?;
+    if appid == u32::MAX || appid == 0 {
+        anyhow::bail!("cannot obtain the manager appid");
+    }
+    let inherited = DRIVER_FD.get().copied().unwrap_or(-1);
+    let len = input.len();
+
+    let mut fds = [0i32; 2];
+    unsafe {
+        if libc::pipe(fds.as_mut_ptr()) != 0 {
+            anyhow::bail!("pipe failed: {}", io::Error::last_os_error());
+        }
+    }
+    let [rd, wr] = fds;
+    let mut out = vec![0u8; len];
+
+    unsafe {
+        let pid = libc::fork();
+        if pid == 0 {
+            // ---- child ----
+            libc::close(rd);
+            let mut buf = [0u8; MANAGER_IOCTL_MAX];
+            std::ptr::copy_nonoverlapping(input.as_ptr(), buf.as_mut_ptr(), len);
+            if libc::setresuid(appid, appid, appid) != 0 {
+                libc::_exit(10);
+            }
+            // Drop the inherited handle so the rescan cannot pick it up again: it carries
+            // no manager permission bit.
+            if inherited >= 0 {
+                libc::close(inherited);
+            }
+            // The handle the kernel installed when we called setresuid.
+            let Ok(Some(fd)) = scan_driver_fd() else {
+                libc::_exit(11);
+            };
+            let ret = libc::ioctl(fd, req as libc::c_int, buf.as_mut_ptr());
+            if ret != 0 {
+                let errno = std::io::Error::last_os_error().raw_os_error().unwrap_or(0);
+                libc::_exit(if errno == libc::ENOENT { 20 } else { 12 });
+            }
+            let mut off = 0usize;
+            while off < len {
+                let n = libc::write(wr, buf.as_ptr().add(off).cast::<libc::c_void>(), len - off);
+                if n <= 0 {
+                    libc::_exit(13);
+                }
+                off += n as usize;
+            }
+            libc::close(wr);
+            libc::_exit(0);
+        } else if pid < 0 {
+            libc::close(rd);
+            libc::close(wr);
+            anyhow::bail!("fork failed: {}", io::Error::last_os_error());
+        }
+
+        libc::close(wr);
+        // The request is far smaller than the 64 KiB pipe buffer, so this read cannot
+        // deadlock against the child's write.
+        let mut off = 0usize;
+        while off < len {
+            let n = libc::read(rd, out.as_mut_ptr().add(off).cast::<libc::c_void>(), len - off);
+            if n <= 0 {
+                break;
+            }
+            off += n as usize;
+        }
+        libc::close(rd);
+        let mut status: libc::c_int = 0;
+        libc::waitpid(pid, &raw mut status, 0);
+        if !libc::WIFEXITED(status) {
+            anyhow::bail!("manager-identity child died abnormally");
+        }
+        match libc::WEXITSTATUS(status) {
+            0 => {}
+            20 => return Ok(None),
+            c => anyhow::bail!(
+                "ioctl failed (child exit {c}: 10=setuid 11=no manager fd 12=kernel refused 13=write-back)"
+            ),
+        }
+        anyhow::ensure!(off == len, "ioctl reply truncated ({off}/{len})");
+    }
+    Ok(Some(out))
+}
+
+const fn struct_bytes<T>(v: &T) -> &[u8] {
+    let p = std::ptr::from_ref(v).cast::<u8>();
+    unsafe { std::slice::from_raw_parts(p, std::mem::size_of::<T>()) }
+}
+
+fn struct_from_bytes<T: Copy>(b: &[u8]) -> anyhow::Result<T> {
+    anyhow::ensure!(
+        b.len() >= std::mem::size_of::<T>(),
+        "not enough bytes for the struct"
+    );
+    // These are all C PODs (integers, fixed char arrays, bools), so all-zero is valid.
+    let mut v: T = unsafe { std::mem::zeroed() };
+    unsafe {
+        std::ptr::copy_nonoverlapping(
+            b.as_ptr(),
+            std::ptr::addr_of_mut!(v).cast::<u8>(),
+            std::mem::size_of::<T>(),
+        );
+    }
+    Ok(v)
+}
+
+/// Read one app's AppProfile.
+///
+/// `Ok(None)` = the kernel has no entry for this uid (never granted, never configured);
+/// the UI then shows defaults.
+pub fn get_app_profile(uid: u32, key: &str) -> anyhow::Result<Option<ksu_uapi::app_profile>> {
+    let mut cmd: ksu_uapi::ksu_get_app_profile_cmd = unsafe { std::mem::zeroed() };
+    cmd.profile.version = ksu_uapi::KSU_APP_PROFILE_VER;
+    cmd.profile.curr_uid = uid as i32;
+    write_cstr(&mut cmd.profile.key[..], key);
+    match ioctl_as_manager(ksu_uapi::KSU_IOCTL_GET_APP_PROFILE, struct_bytes(&cmd))? {
+        None => Ok(None),
+        Some(out) => {
+            let got: ksu_uapi::ksu_get_app_profile_cmd = struct_from_bytes(&out)?;
+            Ok(Some(got.profile))
+        }
+    }
+}
+
+/// Write an AppProfile (granting/revoking root and editing root config all go through here).
+pub fn set_app_profile(profile: &ksu_uapi::app_profile) -> anyhow::Result<()> {
+    let mut cmd: ksu_uapi::ksu_set_app_profile_cmd = unsafe { std::mem::zeroed() };
+    cmd.profile = *profile;
+    match ioctl_as_manager(ksu_uapi::KSU_IOCTL_SET_APP_PROFILE, struct_bytes(&cmd))? {
+        Some(_) => Ok(()),
+        None => anyhow::bail!("the kernel reports no such profile"),
+    }
+}
+
+// ---- Hidden mode: deliberately not wired to the kernel --------------------------------
+//
+// 7kimisu implements hidden mode as a *kernel* flag (`KSU_IOCTL_STEALTH_{GET,SET}`, its
+// UAPI 5) and drives it with the same manager-identity dance. paperSU's hidden mode lives
+// in the manager instead: the app flips a mask inside the loaded native library so that
+// `Natives.isManager` reports false (see `ui/security/Stealth.kt`). That needs no kernel
+// support, which is exactly why it behaves identically for boot / init_boot / LKM /
+// built-in / GKI.
+//
+// The web admin page still asks about it, so answer honestly rather than pretend: reads
+// report "off", and writes return an explanation that the page shows to the user.
+
+/// paperSU keeps hidden mode in the manager, so ksud cannot observe it: report "off".
+pub fn stealth_get_authed() -> anyhow::Result<bool> {
+    Ok(false)
+}
+
+/// Not available through the web page - see the note above.
+pub fn stealth_set_authed(_enabled: bool) -> anyhow::Result<()> {
+    anyhow::bail!(
+        "this build keeps hidden mode in the manager app; toggle it from the app settings"
+    )
+}

@@ -94,10 +94,15 @@ import com.sukisu.ultra.ui.screen.umountmanager.UmountManagerScreen
 import com.sukisu.ultra.ui.theme.KernelSUTheme
 import com.sukisu.ultra.ui.theme.LocalColorMode
 import com.sukisu.ultra.ui.theme.LocalEnableBlur
+import com.sukisu.ultra.ui.theme.LocalEnableSnowfall
+import com.sukisu.ultra.ui.theme.LocalEnableTrollRain
+import com.sukisu.ultra.ui.component.SnowfallOverlay
+import com.sukisu.ultra.ui.component.TrollRainOverlay
 import com.sukisu.ultra.ui.theme.LocalEnableFloatingBottomBar
 import com.sukisu.ultra.ui.theme.LocalEnableFloatingBottomBarBlur
 import com.sukisu.ultra.ui.theme.LocalEnableNavigationBadge
 import com.sukisu.ultra.ui.theme.LocalModuleDescriptionMaxLines
+import com.sukisu.ultra.ui.util.WallpaperHost
 import com.sukisu.ultra.ui.util.getSuperuserCount
 import com.sukisu.ultra.ui.util.install
 import com.sukisu.ultra.ui.util.rememberBlurBackdrop
@@ -140,10 +145,26 @@ class MainActivity : ComponentActivity() {
             !contentReady || SystemClock.uptimeMillis() - splashStartedAt < splashAnimationDurationMs
         }
 
+        // paperSU: apply hidden mode before anything reads Natives.isManager, otherwise a
+        // first frame would render the root state and then flip to "not installed".
+        com.sukisu.ultra.ui.security.Stealth.applyMask()
+
         val isManager = Natives.isManager
         if (isManager && Natives.kernelUAPIVersion == Natives.managerUAPIVersion) install()
 
         if (savedInstanceState == null) intent?.let { intentChannel.trySend(it) }
+
+        // paperSU: every fresh install opens with the bundled wallpaper already set,
+        // so first-run users see the intended look without touching any setting.
+        // seedDefaultIfNeeded() is idempotent (it records `wallpaper_seeded`), and it
+        // runs off the main thread because it copies a drawable into the private dir.
+        // WallpaperPrefs notifies the UI once `wallpaper_*` is written, so the theme
+        // picks up the translucency without needing a restart.
+        Thread {
+            runCatching {
+                com.sukisu.ultra.ui.util.WallpaperStore.seedDefaultIfNeeded(applicationContext)
+            }
+        }.start()
 
         setContent {
             val viewModel = viewModel<MainActivityViewModel>()
@@ -179,6 +200,8 @@ class MainActivity : ComponentActivity() {
                 LocalDensity provides density,
                 LocalColorMode provides appSettings.colorMode.value,
                 LocalEnableBlur provides uiState.enableBlur,
+                LocalEnableSnowfall provides uiState.enableSnowfall,
+                LocalEnableTrollRain provides uiState.enableTrollRain,
                 LocalEnableFloatingBottomBar provides uiState.enableFloatingBottomBar,
                 LocalEnableFloatingBottomBarBlur provides uiState.enableFloatingBottomBarBlur,
                 LocalEnableNavigationBadge provides uiState.enableNavigationBadge,
@@ -259,12 +282,16 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        when (uiMode) {
-                            UiMode.Material -> androidx.compose.material3.Scaffold(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer
-                            ) { navDisplay() }
+                        // paperSU: draw the 7kimisu wallpaper layer behind the UI. With no
+                        // wallpaper configured WallpaperHost just calls content() unchanged.
+                        WallpaperHost {
+                            when (uiMode) {
+                                UiMode.Material -> androidx.compose.material3.Scaffold(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                                ) { navDisplay() }
 
-                            UiMode.Miuix -> Scaffold { navDisplay() }
+                                UiMode.Miuix -> Scaffold { navDisplay() }
+                            }
                         }
                         SideEffect { contentReady = true }
                     }
@@ -292,6 +319,9 @@ fun MainScreen(
 ) {
     val navController = LocalNavigator.current
     val enableBlur = LocalEnableBlur.current
+    // paperSU: 7kimisu personalization overlays
+    val enableSnowfall = LocalEnableSnowfall.current
+    val enableTrollRain = LocalEnableTrollRain.current
     val enableFloatingBottomBar = LocalEnableFloatingBottomBar.current
     val enableFloatingBottomBarBlur = LocalEnableFloatingBottomBarBlur.current
     val useNavigationRail = useNavigationRail(enableFloatingBottomBar)
@@ -424,6 +454,10 @@ fun MainScreen(
                         3 -> if (contentReady || isCurrentPage) SettingPager(navController, bottomInnerPadding, isCurrentPage)
                     }
                 }
+                // paperSU: 7kimisu personalization overlays (snow / troll rain).
+                // Both fill their own bounds and take no pointer input.
+                if (enableSnowfall) SnowfallOverlay()
+                if (enableTrollRain) TrollRainOverlay()
             }
         }
 

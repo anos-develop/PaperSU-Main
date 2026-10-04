@@ -3,6 +3,7 @@
 //
 
 #include <sys/prctl.h>
+#include <atomic>
 #include <cstdint>
 #include <cstring>
 #include <cstdio>
@@ -19,6 +20,17 @@
 #include "ksu.h"
 
 static int fd = -1;
+
+// paperSU: app-side hidden mode mask (see ksu.h).
+static std::atomic<bool> g_stealth_mask{false};
+
+void set_stealth_mask(bool enabled) {
+    g_stealth_mask.store(enabled, std::memory_order_relaxed);
+}
+
+bool stealth_mask_enabled() {
+    return g_stealth_mask.load(std::memory_order_relaxed);
+}
 
 static inline int scan_driver_fd() {
     const char *kName = "[ksu_driver]";
@@ -134,6 +146,13 @@ bool is_late_load_mode() {
 }
 
 bool is_manager() {
+    // paperSU: hidden mode. Report "not the manager" so HomeViewModel and everything
+    // else that consumes Natives.isManager degrades to the "not installed" UI. The
+    // real kernel permissions are untouched, which is why the app itself can still
+    // turn the mask back off from its own settings (or via the dialer secret code).
+    if (stealth_mask_enabled()) {
+        return false;
+    }
     auto info = get_info();
     if (info.version > 0) {
         return (info.flags & KSU_GET_INFO_FLAG_MANAGER) != 0;

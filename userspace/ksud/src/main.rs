@@ -66,6 +66,15 @@ mod unload;
 #[cfg(target_os = "android")]
 mod utils;
 
+// paperSU: web-based root management, ported from 7kimisu's webadmin.
+// Security contract preserved verbatim: the listener binds 127.0.0.1 only, every request
+// (including static assets) must carry a 256-bit token in its path, and the service is off
+// by default. `webadmin` is android-gated here because it uses `restorecon` + `ksu_uapi`.
+#[cfg(target_os = "android")]
+mod webadmin;
+#[cfg(target_os = "android")]
+mod webadmin_ksud;
+
 #[cfg(target_os = "android")]
 #[allow(nonstandard_style, unused, unsafe_op_in_unsafe_fn)]
 mod ksu_uapi;

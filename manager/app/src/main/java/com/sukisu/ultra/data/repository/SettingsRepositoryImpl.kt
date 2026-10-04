@@ -14,6 +14,7 @@ import com.sukisu.ultra.magica.BootCompletedReceiver
 import com.sukisu.ultra.ui.UiMode
 import com.sukisu.ultra.ui.screen.modulerepo.RepoSort
 import com.sukisu.ultra.ui.util.execKsud
+import com.sukisu.ultra.ui.util.WallpaperStore
 import com.sukisu.ultra.ui.util.getFeaturePersistValue
 import com.sukisu.ultra.ui.util.getFeatureStatus
 import com.sukisu.ultra.ui.util.LocaleHelper
@@ -93,6 +94,14 @@ class SettingsRepositoryImpl : SettingsRepository {
     override var enableBlur: Boolean
         get() = prefs.getBoolean("enable_blur", false)
         set(value) = prefs.edit { putBoolean("enable_blur", value) }
+
+    override var enableSnowfall: Boolean
+        get() = prefs.getBoolean("enable_snowfall", false)
+        set(value) = prefs.edit { putBoolean("enable_snowfall", value) }
+
+    override var enableTrollRain: Boolean
+        get() = prefs.getBoolean("enable_troll_rain", false)
+        set(value) = prefs.edit { putBoolean("enable_troll_rain", value) }
 
     override var enableFloatingBottomBar: Boolean
         get() = prefs.getBoolean("enable_floating_bottom_bar", false)
@@ -174,6 +183,75 @@ class SettingsRepositoryImpl : SettingsRepository {
     override var useSoftReboot: Boolean
         get() = prefs.getBoolean(KEY_USE_SOFT_REBOOT, false)
         set(value) = prefs.edit { putBoolean(KEY_USE_SOFT_REBOOT, value) }
+
+    // paperSU: hidden mode (app-side equivalent of 7kimisu's stealth mode)
+    override var stealthEnabled: Boolean
+        get() = prefs.getBoolean("stealth_enabled", false)
+        set(value) = prefs.edit { putBoolean("stealth_enabled", value) }
+
+    override var stealthCode: String
+        get() = prefs.getString("stealth_code", "") ?: ""
+        set(value) = prefs.edit { putString("stealth_code", value) }
+
+    // paperSU: web manager switch. The service lives in ksud; see SettingsRepository.
+    override var webAdminEnabled: Boolean
+        get() = prefs.getBoolean("webadmin_enabled", false)
+        set(value) = prefs.edit { putBoolean("webadmin_enabled", value) }
+
+    // paperSU: ported from 7kimisu's wallpaper system (ui/util/WallpaperStore.kt)
+    override var wallpaperPath: String
+        get() = prefs.getString("wallpaper_path", "") ?: ""
+        set(value) = prefs.edit { putString("wallpaper_path", value) }
+
+    override var wallpaperKind: String
+        get() = prefs.getString("wallpaper_kind", "none") ?: "none"
+        set(value) = prefs.edit { putString("wallpaper_kind", value) }
+
+    override var wallpaperLandPath: String
+        get() = prefs.getString("wallpaper_land_path", "") ?: ""
+        set(value) = prefs.edit { putString("wallpaper_land_path", value) }
+
+    override var wallpaperLandKind: String
+        get() = prefs.getString("wallpaper_land_kind", "none") ?: "none"
+        set(value) = prefs.edit { putString("wallpaper_land_kind", value) }
+
+    override var wallpaperDim: Float
+        get() = prefs.getFloat("wallpaper_dim", 0.2f)
+        set(value) = prefs.edit { putFloat("wallpaper_dim", value) }
+
+    override var wallpaperBlur: Float
+        get() = prefs.getFloat("wallpaper_blur", 0f)
+        set(value) = prefs.edit { putFloat("wallpaper_blur", value) }
+
+    override var wallpaperSeeded: Boolean
+        get() = prefs.getBoolean("wallpaper_seeded", false)
+        set(value) = prefs.edit { putBoolean("wallpaper_seeded", value) }
+
+    override var wallpaperSeed: Boolean
+        get() = prefs.getBoolean("wallpaper_seed", false)
+        set(value) = prefs.edit { putBoolean("wallpaper_seed", value) }
+
+    override var wallpaperSeedColor: Int
+        get() = prefs.getInt("wallpaper_seed_color", 0)
+        set(value) = prefs.edit { putInt("wallpaper_seed_color", value) }
+
+    // paperSU: ported from 7kimisu's translucent-UI support
+    override var uiTranslucent: Boolean
+        get() = prefs.getBoolean("ui_translucent", true)
+        set(value) = prefs.edit { putBoolean("ui_translucent", value) }
+
+    override var uiTranslucentAlpha: Float
+        get() = prefs.getFloat("ui_translucent_alpha", 0.02f)
+        set(value) = prefs.edit { putFloat("ui_translucent_alpha", value) }
+
+    // paperSU: derived from the wallpaper prefs. Enabling seeds the built-in default
+    // wallpaper; disabling clears it. Both paths write `wallpaper_*` keys into the same
+    // SharedPreferences, so WallpaperPrefs.notify -> Compose recomposition still works.
+    override var wallpaperEnabled: Boolean
+        get() = wallpaperKind != "none"
+        set(value) {
+            if (value) WallpaperStore.applyBuiltin(ksuApp) else WallpaperStore.clear()
+        }
 
     override val intentToken: String
         get() {

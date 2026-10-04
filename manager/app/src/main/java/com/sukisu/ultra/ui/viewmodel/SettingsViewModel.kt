@@ -44,6 +44,9 @@ class SettingsViewModel(
             val enableSwipeDismiss = repo.enableSwipeDismiss
             val pagerInterceptionMode = repo.pagerInterceptionMode
             val enableBlur = repo.enableBlur
+            val enableSnowfall = repo.enableSnowfall
+            val enableTrollRain = repo.enableTrollRain
+            val wallpaperEnabled = repo.wallpaperEnabled
             val enableFloatingBottomBar = repo.enableFloatingBottomBar
             val enableFloatingBottomBarBlur = repo.enableFloatingBottomBarBlur
             val enableNavigationBadge = repo.enableNavigationBadge
@@ -91,6 +94,9 @@ class SettingsViewModel(
                     enableSwipeDismiss = enableSwipeDismiss,
                     pagerInterceptionMode = pagerInterceptionMode,
                     enableBlur = enableBlur,
+                    enableSnowfall = enableSnowfall,
+                    enableTrollRain = enableTrollRain,
+                    wallpaperEnabled = wallpaperEnabled,
                     enableFloatingBottomBar = enableFloatingBottomBar,
                     enableFloatingBottomBarBlur = enableFloatingBottomBarBlur,
                     enableNavigationBadge = enableNavigationBadge,
@@ -237,6 +243,21 @@ class SettingsViewModel(
     fun setEnableBlur(enabled: Boolean) {
         repo.enableBlur = enabled
         _uiState.update { it.copy(enableBlur = enabled) }
+    }
+
+    fun setEnableSnowfall(enabled: Boolean) {
+        repo.enableSnowfall = enabled
+        _uiState.update { it.copy(enableSnowfall = enabled) }
+    }
+
+    fun setWallpaperEnabled(enabled: Boolean) {
+        repo.wallpaperEnabled = enabled
+        _uiState.update { it.copy(wallpaperEnabled = repo.wallpaperEnabled) }
+    }
+
+    fun setEnableTrollRain(enabled: Boolean) {
+        repo.enableTrollRain = enabled
+        _uiState.update { it.copy(enableTrollRain = enabled) }
     }
 
     fun setEnableFloatingBottomBar(enabled: Boolean) {

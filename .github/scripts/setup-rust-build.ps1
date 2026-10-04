@@ -1,4 +1,4 @@
-# 用法: .\setup-ndk.ps1 <TRIPLE> <ANDROID_SDK_LEVEL>
+﻿# 用法: .\setup-ndk.ps1 <TRIPLE> <ANDROID_SDK_LEVEL>
 # 示例: .\setup-ndk.ps1 aarch64-linux-android 21
 
 param(
@@ -47,18 +47,27 @@ $UTRIPLE = $TRIPLE.Replace("-", "_")
 $UUTRIPLE = $UTRIPLE.ToUpper()
 
 # 设置环境变量
-$env:CC_$UTRIPLE = $CLANG_PATH
-$env:CXX_$UTRIPLE = $CLANGPP_PATH
-$env:AR_$UTRIPLE = "$LLVM_BIN\llvm-ar.exe"
-$env:CARGO_TARGET_${UUTRIPLE}_LINKER = $CLANG_PATH
-$env:BINDGEN_EXTRA_CLANG_ARGS_$UTRIPLE = "--sysroot=$LLVM_PATH\sysroot -I$LLVM_PATH\sysroot\usr\include\$TRIPLE"
+# 注意: 动态拼接的环境变量名不能写成 $env:NAME_$VAR（不是合法语法，会导致解析失败）。
+# 必须使用 Set-Item / [Environment]::SetEnvironmentVariable。
+Set-Item -Path "env:CC_$UTRIPLE" -Value $CLANG_PATH
+Set-Item -Path "env:CXX_$UTRIPLE" -Value $CLANGPP_PATH
+Set-Item -Path "env:AR_$UTRIPLE" -Value "$LLVM_BIN\llvm-ar.exe"
+Set-Item -Path "env:CARGO_TARGET_${UUTRIPLE}_LINKER" -Value $CLANG_PATH
+Set-Item -Path "env:BINDGEN_EXTRA_CLANG_ARGS_$UTRIPLE" -Value "--sysroot=$LLVM_PATH\sysroot -I$LLVM_PATH\sysroot\usr\include\$TRIPLE"
 
 # 输出确认信息
+function Get-EnvValue([string]$Name) { [Environment]::GetEnvironmentVariable($Name, 'Process') }
+# 先取值再插值：避免在双引号字符串的 $( ) 子表达式里再嵌套双引号
+$ccValue      = Get-EnvValue "CC_$UTRIPLE"
+$cxxValue     = Get-EnvValue "CXX_$UTRIPLE"
+$arValue      = Get-EnvValue "AR_$UTRIPLE"
+$linkerValue  = Get-EnvValue "CARGO_TARGET_${UUTRIPLE}_LINKER"
+$bindgenValue = Get-EnvValue "BINDGEN_EXTRA_CLANG_ARGS_$UTRIPLE"
 Write-Host "NDK 交叉编译环境已配置:"
 Write-Host "  TRIPLE:        $TRIPLE"
 Write-Host "  NDK_TRIPLE:    $NDK_TRIPLE"
-Write-Host "  CC:            $($env:CC_$UTRIPLE)"
-Write-Host "  CXX:           $($env:CXX_$UTRIPLE)"
-Write-Host "  AR:            $($env:AR_$UTRIPLE)"
-Write-Host "  LINKER:        $($env:CARGO_TARGET_${UUTRIPLE}_LINKER)"
-Write-Host "  BINDGEN_ARGS:  $($env:BINDGEN_EXTRA_CLANG_ARGS_$UTRIPLE)"
+Write-Host "  CC:            $ccValue"
+Write-Host "  CXX:           $cxxValue"
+Write-Host "  AR:            $arValue"
+Write-Host "  LINKER:        $linkerValue"
+Write-Host "  BINDGEN_ARGS:  $bindgenValue"

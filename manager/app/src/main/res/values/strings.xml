@@ -269,6 +269,26 @@
     <string name="current_device_kmi">This device KMI</string>
     <string name="settings_enable_blur">Blur</string>
     <string name="settings_enable_blur_summary">Enable blur effect for top and bottom bars.</string>
+    <string name="settings_enable_snowfall">Snowfall effect</string>
+    <string name="settings_enable_snowfall_summary">Overlay drifting snowflakes that follow the phone\'s tilt.</string>
+    <string name="settings_enable_troll_rain">Troll rain</string>
+    <string name="settings_enable_troll_rain_summary">Overlay tumbling falling icons driven by gravity.</string>
+    <string name="settings_wallpaper_default">Default wallpaper</string>
+    <string name="settings_wallpaper_default_summary">Draw a built-in wallpaper behind the interface and make the UI translucent so it shows through.</string>
+    <string name="settings_nav_icon_home">Home icon</string>
+    <string name="settings_nav_icon_superuser">Superuser icon</string>
+    <string name="settings_nav_icon_module">Module icon</string>
+    <string name="settings_nav_icon_setting">Settings icon</string>
+    <string name="settings_nav_icon_summary">Pick a custom image for this bottom bar item. Cleared items fall back to the built-in icon.</string>
+    <string name="settings_stealth_enabled">Hidden mode</string>
+    <string name="settings_stealth_enabled_summary">Pretend the manager is not installed. Enter the dialer code below to reveal it again.</string>
+    <string name="settings_stealth_code">Unlock code</string>
+    <string name="settings_stealth_code_summary">Dial *#*#%s#*#* to leave hidden mode.</string>
+    <string name="stealth_restore_disabled">Hidden mode turned off</string>
+    <string name="stealth_restore_not_enabled">Hidden mode was not enabled</string>
+    <string name="stealth_notification_text">Tap here to open the manager</string>
+    <string name="stealth_channel_name">Hidden mode</string>
+    <string name="stealth_launch_failed">Hidden mode is off, but the UI could not start. Tap the app icon.</string>
     <string name="settings_floating_bottom_bar">Floating bottom bar</string>
     <string name="settings_floating_bottom_bar_summary">Use Apple style floating bottom bar.</string>
     <string name="settings_enable_glass">Liquid glass</string>
@@ -644,4 +664,25 @@
     <string name="home_zygisk_not_installed">Not installed</string>
     <string name="home_zygisk_disabled">Disabled</string>
     <string name="home_zygisk_reboot_required">Reboot required</string>
+
+    <!-- paperSU: local web manager (served by ksud, loopback 127.0.0.1 only) -->
+    <string name="webadmin_title">Web manager</string>
+    <string name="webadmin_summary_off">View status, modules and superusers in this phone\'s browser; you can enable/disable or uninstall modules there. The service runs inside ksud, so closing this app does not stop it.</string>
+    <string name="webadmin_summary_on">The service runs inside ksud (independent of this app).\nOpen in a browser:\n%1$s\nThis is your private link — it carries the access key. Do not share it: anyone who has it can get root on this device.</string>
+    <string name="webadmin_reading">loading… (needs root)</string>
+    <string name="webadmin_open">Open in browser</string>
+    <string name="webadmin_open_summary">Open the link directly, without retyping it</string>
+    <string name="webadmin_copy">Copy private link</string>
+    <string name="webadmin_copy_summary">Copy the link that already contains the access key</string>
+    <string name="webadmin_copy_ok">Link copied — paste it into the browser</string>
+    <string name="webadmin_copy_fail">Copy failed</string>
+    <string name="webadmin_reset">Reset access key</string>
+    <string name="webadmin_reset_summary">Issue a new key; the old link stops working right away (use this if it leaked)</string>
+    <string name="webadmin_reset_failed">Reset failed — is ksud installed and running?</string>
+    <string name="webadmin_diagnose">Diagnose (tap when it will not open)</string>
+    <string name="webadmin_diagnose_summary">Collect the real state on this device: is ksud installed, is the service running, log tail (the access key is masked)</string>
+    <string name="webadmin_copy_all_ok">Diagnostics copied</string>
+    <string name="webadmin_browser_failed">Cannot open the browser: %1$s</string>
+    <string name="webadmin_ksud_failed">Calling ksud failed — install ksud from the Install tab first</string>
+    <string name="webadmin_local_only">Reachable on this device only: the listener binds 127.0.0.1, so no other machine can connect.</string>
 </resources>

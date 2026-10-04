@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- paperSU monogram: a stroked "P". Used for themed (monochrome) launcher icons
+     so no KernelSU artwork shows through on Android 13+ themed icons. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M40,82 V26 H62 A17,17 0 0 1 62,60 H40"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="15"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>
