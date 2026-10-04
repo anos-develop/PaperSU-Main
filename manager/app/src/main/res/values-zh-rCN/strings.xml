@@ -668,4 +668,17 @@
     <string name="webadmin_ksud_failed">与内核守护进程通信失败</string>
     <string name="webadmin_reset_failed">重置失败</string>
     <string name="home_papersu_beta_warning">当前版本为内测版本，请勿直接用于日常生活，隐藏正在努力做好啦！</string>
+
+    <!-- paperSU：主题设置汉化 + 一键隐藏环境 -->
+    <string name="settings_enable_snowfall">下雪效果</string>
+    <string name="settings_enable_snowfall_summary">叠加一层飘落的雪花，会跟随手机晃动。</string>
+    <string name="settings_enable_troll_rain">恶搞雨</string>
+    <string name="settings_enable_troll_rain_summary">叠加一层受重力下落的图标。</string>
+    <string name="settings_nav_icon_home">首页图标</string>
+    <string name="settings_nav_icon_superuser">超级用户图标</string>
+    <string name="settings_nav_icon_module">模块图标</string>
+    <string name="settings_nav_icon_setting">设置图标</string>
+    <string name="settings_nav_icon_summary">为对应的底栏项目选择自定义图片；清空即恢复默认。</string>
+    <string name="settings_hide_env_title">一键隐藏环境</string>
+    <string name="settings_hide_env_summary">使用了月虹大佬的月虹隐藏模块，在此感谢作者</string>
 </resources>

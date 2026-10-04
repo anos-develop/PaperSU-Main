@@ -140,6 +140,22 @@ fun SettingPagerMaterial(
                                 checked = uiState.checkModuleUpdate,
                                 onCheckedChange = actions.onSetCheckModuleUpdate
                             )
+                        },
+                        {
+                            // paperSU: 一键隐藏环境（移植自月虹隐藏模块）
+                            val hideEnvContext = LocalContext.current
+                            var hideEnvOn by remember { mutableStateOf(Stealth.isEnabled()) }
+                            SegmentedSwitchItem(
+                                icon = Icons.Rounded.VisibilityOff,
+                                title = stringResource(id = R.string.settings_hide_env_title),
+                                summary = stringResource(id = R.string.settings_hide_env_summary),
+                                checked = hideEnvOn,
+                                onCheckedChange = { want ->
+                                    Stealth.setEnabled(want)
+                                    hideEnvOn = want
+                                    restartUiFresh(hideEnvContext)
+                                }
+                            )
                         }
                     )
                 )

@@ -686,4 +686,6 @@
     <string name="webadmin_ksud_failed">Calling ksud failed — install ksud from the Install tab first</string>
     <string name="webadmin_local_only">Reachable on this device only: the listener binds 127.0.0.1, so no other machine can connect.</string>
     <string name="home_papersu_beta_warning">This is a beta build. Do not rely on it for daily use.</string>
+    <string name="settings_hide_env_title">Hide environment</string>
+    <string name="settings_hide_env_summary">Uses the Moonbow hidden module by Moonbow. Thanks to the author.</string>
 </resources>

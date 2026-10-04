@@ -84,7 +84,9 @@ private fun ColorScheme.translucent(alpha: Float): ColorScheme {
         // 二级页面就会透出首页内容（实测“安装”页后面能看到首页状态卡）。壁纸改由卡片
         // 的轻微透明来透出，不再靠页面底色。
         background = background.copy(alpha = 1f),
-        surface = surface.copy(alpha = alpha),
+        // paperSU: Scaffold 的 containerColor 用的是 surface —— 它必须不透明，否则
+        // 二级页面（如「安装」）会透出上一页的内容。
+        surface = surface.copy(alpha = 1f),
         surfaceDim = surfaceDim.copy(alpha = alpha),
         surfaceBright = surfaceBright.copy(alpha = alpha),
         surfaceVariant = surfaceVariant.copy(alpha = card),
