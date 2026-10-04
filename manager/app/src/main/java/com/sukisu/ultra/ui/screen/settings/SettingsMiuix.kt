@@ -87,6 +87,8 @@ import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import com.sukisu.ultra.ui.component.hideenv.HideEnvHost
+import com.sukisu.ultra.ui.component.hideenv.HideEnvDialogState
 
 /**
  * @author weishu
@@ -184,9 +186,12 @@ fun SettingPagerMiuix(
                                 },
                                 checked = hideEnvOn2,
                                 onCheckedChange = { want ->
-                                    Stealth.setEnabled(want)
-                                    hideEnvOn2 = want
-                                    restartUiFresh(hideEnvContext2)
+                                    if (want) {
+                                        HideEnvDialogState.open()
+                                    } else {
+                                        Stealth.setEnabled(false)
+                                        restartUiFresh(hideEnvContext2)
+                                    }
                                 }
                             )
                         }
@@ -784,6 +789,9 @@ fun SettingPagerMiuix(
                                 show = showUninstallDialog.value,
                                 onDismissRequest = { showUninstallDialog.value = false }
                             )
+
+                            // paperSU: 一键隐藏环境的确认弹窗（内容都在 HideEnvDialog.kt 里）
+                            HideEnvHost()
                         }
                     }
 

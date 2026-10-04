@@ -124,10 +124,8 @@ private fun Colors.translucent(alpha: Float): Colors {
         // paperSU: 页面底色必须不透明。Nav3 会把上一页留在组合里，底色一旦半透明，
         // 二级页面就会透出首页内容（实测“安装”页后面能看到首页状态卡）。壁纸改由卡片
         // 的轻微透明来透出，不再靠页面底色。
-        background = background.copy(alpha = 1f),
-        // paperSU: Scaffold 的 containerColor 用的是 surface —— 它必须不透明，否则
-        // 二级页面（如「安装」）会透出上一页的内容。
-        surface = surface.copy(alpha = 1f),
+        background = background.copy(alpha = alpha),
+        surface = surface.copy(alpha = alpha),
         surfaceVariant = surfaceVariant.copy(alpha = card),
         surfaceContainer = surfaceContainer.copy(alpha = card),
         surfaceContainerHigh = surfaceContainerHigh.copy(alpha = card),

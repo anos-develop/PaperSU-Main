@@ -672,8 +672,8 @@
     <!-- paperSU：主题设置汉化 + 一键隐藏环境 -->
     <string name="settings_enable_snowfall">下雪效果</string>
     <string name="settings_enable_snowfall_summary">叠加一层飘落的雪花，会跟随手机晃动。</string>
-    <string name="settings_enable_troll_rain">恶搞雨</string>
-    <string name="settings_enable_troll_rain_summary">叠加一层受重力下落的图标。</string>
+    <string name="settings_enable_troll_rain">巨魔雨</string>
+    <string name="settings_enable_troll_rain_summary">叠加一层受重力下落的巨魔图标。</string>
     <string name="settings_nav_icon_home">首页图标</string>
     <string name="settings_nav_icon_superuser">超级用户图标</string>
     <string name="settings_nav_icon_module">模块图标</string>
@@ -681,4 +681,10 @@
     <string name="settings_nav_icon_summary">为对应的底栏项目选择自定义图片；清空即恢复默认。</string>
     <string name="settings_hide_env_title">一键隐藏环境</string>
     <string name="settings_hide_env_summary">使用了月虹大佬的月虹隐藏模块，在此感谢作者</string>
-</resources>
+    <string name="hide_env_confirm_title">安装隐藏模块</string>
+    <string name="hide_env_confirm_message">将从云端下载隐藏模块并刷入设备，需要 root 权限。是否继续？</string>
+    <string name="hide_env_confirm_ok">下载并刷入</string>
+    <string name="hide_env_confirm_cancel">取消</string>
+    <string name="hide_env_running">正在下载并刷入隐藏模块…</string>
+    <string name="hide_env_done">隐藏模块已刷入，请重启手机</string>
+    <string name="hide_env_failed">刷入失败，请查看日志</string></resources>

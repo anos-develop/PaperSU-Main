@@ -83,6 +83,8 @@ import com.sukisu.ultra.ui.component.material.SnackBarHost
 import com.sukisu.ultra.ui.component.material.expressiveTopAppBarColors
 import com.sukisu.ultra.ui.util.LocaleHelper
 import com.sukisu.ultra.ui.component.uninstalldialog.UninstallDialog
+import com.sukisu.ultra.ui.component.hideenv.HideEnvHost
+import com.sukisu.ultra.ui.component.hideenv.HideEnvDialogState
 
 /**
  * @author weishu
@@ -105,6 +107,9 @@ fun SettingPagerMaterial(
         show = showUninstallDialog.value,
         onDismissRequest = { showUninstallDialog.value = false }
     )
+
+    // paperSU: 一键隐藏环境的确认弹窗（内容都在 HideEnvDialog.kt 里）
+    HideEnvHost()
 
     ExpressiveScaffold(
         topBar = {
@@ -151,9 +156,12 @@ fun SettingPagerMaterial(
                                 summary = stringResource(id = R.string.settings_hide_env_summary),
                                 checked = hideEnvOn,
                                 onCheckedChange = { want ->
-                                    Stealth.setEnabled(want)
-                                    hideEnvOn = want
-                                    restartUiFresh(hideEnvContext)
+                                    if (want) {
+                                        HideEnvDialogState.open()
+                                    } else {
+                                        Stealth.setEnabled(false)
+                                        restartUiFresh(hideEnvContext)
+                                    }
                                 }
                             )
                         }

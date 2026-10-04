@@ -688,4 +688,10 @@
     <string name="home_papersu_beta_warning">This is a beta build. Do not rely on it for daily use.</string>
     <string name="settings_hide_env_title">Hide environment</string>
     <string name="settings_hide_env_summary">Uses the Moonbow hidden module by Moonbow. Thanks to the author.</string>
-</resources>
+    <string name="hide_env_confirm_title">Install hidden module</string>
+    <string name="hide_env_confirm_message">The hidden module will be downloaded and flashed. Root is required. Continue?</string>
+    <string name="hide_env_confirm_ok">Download and flash</string>
+    <string name="hide_env_confirm_cancel">Cancel</string>
+    <string name="hide_env_running">Downloading and flashing the hidden module…</string>
+    <string name="hide_env_done">Module flashed. Please reboot.</string>
+    <string name="hide_env_failed">Flash failed, check the log.</string></resources>

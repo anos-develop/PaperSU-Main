@@ -123,6 +123,30 @@ import top.yukonga.miuix.kmp.utils.PagerGestureNestedScrollConnection
 import top.yukonga.miuix.kmp.utils.PagerInterceptionMode
 import top.yukonga.miuix.kmp.utils.PagerNavigationSpringSpec
 import top.yukonga.miuix.kmp.utils.pagerGestureOverride
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import com.sukisu.ultra.ui.LocalUiMode
+import com.sukisu.ultra.ui.UiMode
+
+
+// paperSU: 给"二级页面"套一层不透明底。Nav3 会把上一页留在组合里，页面自身没有底色时
+// 首页内容就会透出来（实测「安装」页后面能看到首页状态卡）。首页 Route.Main 不套，
+// 所以壁纸仍然从首页的卡片透出。
+@Composable
+private fun OpaquePage(content: @Composable () -> Unit) {
+    // paperSU: 底色必须按当前界面模式取。MaterialTheme.colorScheme 在 Miuix 界面下
+    // 是 Material 的默认色（白），用它会把二级页面刷成一片白 —— 实测就是这个问题。
+    val bg = if (LocalUiMode.current == UiMode.Miuix) {
+        MiuixTheme.colorScheme.background
+    } else {
+        MaterialTheme.colorScheme.background
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(bg)
+    ) { content() }
+}
 
 class MainActivity : ComponentActivity() {
     private val intentChannel = Channel<Intent>(capacity = Channel.BUFFERED)
@@ -247,26 +271,26 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }) {
                                 entry<Route.Main>(swipeDismiss = swipeDismiss) { mainScreenEntry() }
-                                entry<Route.About>(swipeDismiss = swipeDismiss) { AboutScreen() }
-                                entry<Route.Sulog>(swipeDismiss = swipeDismiss) { SulogScreen() }
-                                entry<Route.ColorPalette>(swipeDismiss = swipeDismiss) { ColorPaletteScreen() }
-                                entry<Route.AppProfileTemplate>(swipeDismiss = swipeDismiss) { AppProfileTemplateScreen() }
-                                entry<Route.TemplateEditor>(swipeDismiss = swipeDismiss) { key -> TemplateEditorScreen(key.template, key.readOnly) }
-                                entry<Route.AppProfile>(swipeDismiss = swipeDismiss) { key -> AppProfileScreen(key.uid) }
-                                entry<Route.ModuleRepo>(swipeDismiss = swipeDismiss) { ModuleRepoScreen() }
-                                entry<Route.ModuleRepoDetail>(swipeDismiss = swipeDismiss) { key -> ModuleRepoDetailScreen(key.module) }
-                                entry<Route.Install>(swipeDismiss = swipeDismiss) { key -> InstallScreen(preselectedKernelUri = key.preselectedKernelUri) }
-                                entry<Route.Flash>(swipeDismiss = swipeDismiss) { key -> FlashScreen(key.flashIt) }
+                                entry<Route.About>(swipeDismiss = swipeDismiss) { OpaquePage { AboutScreen() } }
+                                entry<Route.Sulog>(swipeDismiss = swipeDismiss) { OpaquePage { SulogScreen() } }
+                                entry<Route.ColorPalette>(swipeDismiss = swipeDismiss) { OpaquePage { ColorPaletteScreen() } }
+                                entry<Route.AppProfileTemplate>(swipeDismiss = swipeDismiss) { OpaquePage { AppProfileTemplateScreen() } }
+                                entry<Route.TemplateEditor>(swipeDismiss = swipeDismiss) { key -> OpaquePage { TemplateEditorScreen(key.template, key.readOnly) } }
+                                entry<Route.AppProfile>(swipeDismiss = swipeDismiss) { key -> OpaquePage { AppProfileScreen(key.uid) } }
+                                entry<Route.ModuleRepo>(swipeDismiss = swipeDismiss) { OpaquePage { ModuleRepoScreen() } }
+                                entry<Route.ModuleRepoDetail>(swipeDismiss = swipeDismiss) { key -> OpaquePage { ModuleRepoDetailScreen(key.module) } }
+                                entry<Route.Install>(swipeDismiss = swipeDismiss) { key -> OpaquePage { InstallScreen(preselectedKernelUri = key.preselectedKernelUri) } }
+                                entry<Route.Flash>(swipeDismiss = swipeDismiss) { key -> OpaquePage { FlashScreen(key.flashIt) } }
                                 entry<Route.ExecuteModuleAction>(swipeDismiss = swipeDismiss) { key ->
                                     ExecuteModuleActionScreen(
                                         key.moduleId,
                                         key.fromShortcut
                                     )
                                 }
-                                entry<Route.Home>(swipeDismiss = swipeDismiss) { mainScreenEntry() }
-                                entry<Route.SuperUser>(swipeDismiss = swipeDismiss) { mainScreenEntry() }
-                                entry<Route.Module>(swipeDismiss = swipeDismiss) { mainScreenEntry() }
-                                entry<Route.Settings>(swipeDismiss = swipeDismiss) { mainScreenEntry() }
+                                entry<Route.Home>(swipeDismiss = swipeDismiss) { OpaquePage { mainScreenEntry() } }
+                                entry<Route.SuperUser>(swipeDismiss = swipeDismiss) { OpaquePage { mainScreenEntry() } }
+                                entry<Route.Module>(swipeDismiss = swipeDismiss) { OpaquePage { mainScreenEntry() } }
+                                entry<Route.Settings>(swipeDismiss = swipeDismiss) { OpaquePage { mainScreenEntry() } }
                                 entry<Route.KernelFlash>(swipeDismiss = swipeDismiss)  { key ->
                                         KernelFlashScreen(
                                             key.kernelUri,
@@ -275,10 +299,10 @@ class MainActivity : ComponentActivity() {
                                             key.kpmUndoPatch
                                         )
                                     }
-                                    entry<Route.Kpm>(swipeDismiss = swipeDismiss)  { KpmScreen() }
-                                    entry<Route.SuSFS>(swipeDismiss = swipeDismiss)  { SuSFSScreen() }
-                                    entry<Route.Tool>(swipeDismiss = swipeDismiss)  { ToolsScreen() }
-                                    entry<Route.UmountManager>(swipeDismiss = swipeDismiss)  { UmountManagerScreen() }
+                                    entry<Route.Kpm>(swipeDismiss = swipeDismiss)  { OpaquePage { KpmScreen() } }
+                                    entry<Route.SuSFS>(swipeDismiss = swipeDismiss)  { OpaquePage { SuSFSScreen() } }
+                                    entry<Route.Tool>(swipeDismiss = swipeDismiss)  { OpaquePage { ToolsScreen() } }
+                                    entry<Route.UmountManager>(swipeDismiss = swipeDismiss)  { OpaquePage { UmountManagerScreen() } }
                             }
                         }
 
