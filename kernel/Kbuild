@@ -123,7 +123,11 @@ GITHUB_COMMITS   := $(shell $(CURL_BIN) -sI "$(GITHUB_API_BASE)/commits?sha=$(RE
 LOCAL_COUNT     := $(if $(GITHUB_COMMITS),$(GITHUB_COMMITS),$(git_commit_count))
 KSU_VERSION     := $(if $(LOCAL_COUNT),$(shell expr $(VERSION_BASE) + $(LOCAL_COUNT) - $(VERSION_OFFSET)),13000)
 VERSION_TAG     := $(or $(KSU_GITHUB_VER),$(git_latest_tag),4.2.0)
-KSU_VERSION_FULL := $(if $(call git_short_sha),v$(VERSION_TAG)-$(call git_short_sha)@$(call git_branch),v$(VERSION_TAG)-$(REPO_NAME)-unknown@unknown)
+# paperSU: ddk builds happen inside a container without git metadata, so the original
+# fallback rendered on-device as "v4.2.0-SukiSU-Ultra-unknown@unknown". Use a fixed
+# paperSU string for that case, while still honouring git metadata when it exists and
+# an explicit override when one is passed in.
+KSU_VERSION_FULL := $(if $(KSU_VERSION_FULL_OVERRIDE),$(KSU_VERSION_FULL_OVERRIDE),$(if $(call git_short_sha),v$(VERSION_TAG)-$(call git_short_sha)@$(call git_branch),v$(VERSION_TAG)-paperSU))
 $(info -- $(REPO_NAME) version: $(KSU_VERSION) [$(KSU_VERSION_FULL)])
 
 ccflags-y += -DKSU_VERSION=$(KSU_VERSION)

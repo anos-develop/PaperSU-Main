@@ -133,6 +133,8 @@ fun HomePagerMiuix(
                         if (state.checkUpdateEnabled) {
                             UpdateCard(state = state, actions = actions)
                         }
+                        // paperSU: 内测提示横幅，放在首页最上方
+                        WarningCard(stringResource(id = R.string.home_papersu_beta_warning), level = WarningLevel.Notice)
                         if (state.showManagerPrBuildWarning && state.showFullStatus) {
                             WarningCard(stringResource(id = R.string.home_pr_build_warning), level = WarningLevel.Notice)
                         } else if (state.showKernelPrBuildWarning && state.showFullStatus) {

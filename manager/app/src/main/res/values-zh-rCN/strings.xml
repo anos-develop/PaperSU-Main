@@ -629,4 +629,43 @@
     <string name="home_zygisk_not_installed">未安装</string>
     <string name="home_zygisk_disabled">已禁用</string>
     <string name="home_zygisk_reboot_required">需要重启</string>
+    <!-- paperSU：壁纸 / 主题 / 隐藏模式（中文） -->
+    <string name="settings_wallpaper_default">内置壁纸</string>
+    <string name="settings_wallpaper_default_summary">在界面背后绘制一张内置壁纸，并把界面设为半透明以便透出。</string>
+    <string name="settings_stealth_enabled">隐藏模式</string>
+    <string name="settings_stealth_enabled_summary">伪装成未安装管理器。再用下面的拨号代码把它调出来。</string>
+    <string name="settings_stealth_code">解锁代码</string>
+    <string name="settings_stealth_code_summary">拨打 *#*#%s#*#* 退出隐藏模式。</string>
+    <string name="stealth_restore_disabled">隐藏模式已关闭</string>
+    <string name="stealth_restore_not_enabled">隐藏模式未启用</string>
+    <string name="stealth_notification_text">点此打开管理器</string>
+    <string name="stealth_channel_name">隐藏模式</string>
+    <string name="stealth_launch_failed">隐藏模式已关闭，但界面无法启动。请点击应用图标。</string>
+    <!-- paperSU：网页管理 / 诊断 / 语言 / 内测提示（中文） -->
+    <string name="app_name">PaperSU</string>
+    <string name="kpm_title">KPM 模块</string>
+    <string name="settings_adb_root">ADB Root 权限</string>
+    <string name="settings_language">语言</string>
+    <string name="settings_language_summary">选择界面显示语言</string>
+    <string name="settings_language_system">跟随系统</string>
+    <string name="webadmin_title">网页管理</string>
+    <string name="webadmin_summary_on">网页管理已开启</string>
+    <string name="webadmin_summary_off">网页管理已关闭</string>
+    <string name="webadmin_open">打开网页管理</string>
+    <string name="webadmin_open_summary">在内置浏览器中打开网页管理界面</string>
+    <string name="webadmin_diagnose">诊断</string>
+    <string name="webadmin_diagnose_summary">生成一份环境诊断报告，便于排查问题</string>
+    <string name="webadmin_reset">重置访问令牌</string>
+    <string name="webadmin_reset_summary">重新生成网页管理的访问令牌</string>
+    <string name="webadmin_copy">复制</string>
+    <string name="webadmin_copy_summary">复制访问地址与访问令牌</string>
+    <string name="webadmin_copy_ok">已复制到剪贴板</string>
+    <string name="webadmin_copy_all_ok">已全部复制到剪贴板</string>
+    <string name="webadmin_copy_fail">复制失败</string>
+    <string name="webadmin_reading">读取中…</string>
+    <string name="webadmin_local_only">仅限本机（localhost）访问，不对外网开放</string>
+    <string name="webadmin_browser_failed">无法打开浏览器</string>
+    <string name="webadmin_ksud_failed">与内核守护进程通信失败</string>
+    <string name="webadmin_reset_failed">重置失败</string>
+    <string name="home_papersu_beta_warning">当前版本为内测版本，请勿直接用于日常生活，隐藏正在努力做好啦！</string>
 </resources>

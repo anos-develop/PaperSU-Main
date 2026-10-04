@@ -32,14 +32,11 @@ data class HomeUiState(
     val showGkiWarning: Boolean
         get() = ksuVersion != null && lkmMode == false
 
+    // paperSU: the bundled LKM update prompt is disabled. The modules shipped inside
+    // this APK are the ones built against the paperSU signature, so replacing them
+    // with an upstream build would break manager recognition.
     val showLkmUpdate: Boolean
-        get() = isManager &&
-                lkmMode == true &&
-                isLkmBundled &&
-                ksuVersion?.toLong() != currentManagerVersionCode &&
-                !requiresNewKernel &&
-                !requiresNewManager
-
+        get() = false
     val showCustomLkmBadge: Boolean
         get() = lkmMode == true && !isLkmBundled
 

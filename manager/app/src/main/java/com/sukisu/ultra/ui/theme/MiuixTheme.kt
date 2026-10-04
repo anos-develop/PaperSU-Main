@@ -119,9 +119,12 @@ fun MiuixKernelSUTheme(
  * Cards stay a bit more opaque than the page background so text remains readable.
  */
 private fun Colors.translucent(alpha: Float): Colors {
-    val card = (alpha + (1f - alpha) * 0.28f).coerceAtMost(1f)
+    val card = (alpha + (1f - alpha) * 0.18f).coerceAtMost(1f)
     return copy(
-        background = background.copy(alpha = alpha),
+        // paperSU: 页面底色必须不透明。Nav3 会把上一页留在组合里，底色一旦半透明，
+        // 二级页面就会透出首页内容（实测“安装”页后面能看到首页状态卡）。壁纸改由卡片
+        // 的轻微透明来透出，不再靠页面底色。
+        background = background.copy(alpha = 1f),
         surface = surface.copy(alpha = alpha),
         surfaceVariant = surfaceVariant.copy(alpha = card),
         surfaceContainer = surfaceContainer.copy(alpha = card),
