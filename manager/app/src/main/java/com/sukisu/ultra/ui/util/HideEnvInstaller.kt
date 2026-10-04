@@ -20,7 +20,7 @@ object HideEnvInstaller {
      * 换法：只改这一行的字符串即可，下面的脚本与刷入流程都不用动。
      * 例：const val MODULE_URL = "https://github.com/你的账号/你的仓库/releases/download/v1/hide-module.zip"
      */
-    const val MODULE_URL: String = "https://example.com/papersu/hide-module.zip"
+    const val MODULE_URL: String = "https://raw.githubusercontent.com/anos-develop/PaperSU-Main/main/Magisk-Modle/hide-module.zip"
 
     /** 占位地址检测：还没换成真地址时，直接告诉用户，别去网上瞎请求。 */
     fun isPlaceholder(): Boolean = MODULE_URL.contains("example.com")

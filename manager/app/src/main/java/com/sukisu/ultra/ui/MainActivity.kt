@@ -129,23 +129,12 @@ import com.sukisu.ultra.ui.LocalUiMode
 import com.sukisu.ultra.ui.UiMode
 
 
-// paperSU: 给"二级页面"套一层不透明底。Nav3 会把上一页留在组合里，页面自身没有底色时
-// 首页内容就会透出来（实测「安装」页后面能看到首页状态卡）。首页 Route.Main 不套，
-// 所以壁纸仍然从首页的卡片透出。
+// paperSU: 二级页面必须自己把上一页盖住。Nav3 会把上一页留在组合里；只画一层纯色底
+// 会把页面刷成白底（Material 色板与 Miuix 色板不同），所以这里改成画"和首页同一张壁纸"：
+// 壁纸是不透明图片，直接盖掉上一页；页面自身仍是半透明配色，观感与首页一致。
 @Composable
 private fun OpaquePage(content: @Composable () -> Unit) {
-    // paperSU: 底色必须按当前界面模式取。MaterialTheme.colorScheme 在 Miuix 界面下
-    // 是 Material 的默认色（白），用它会把二级页面刷成一片白 —— 实测就是这个问题。
-    val bg = if (LocalUiMode.current == UiMode.Miuix) {
-        MiuixTheme.colorScheme.background
-    } else {
-        MaterialTheme.colorScheme.background
-    }
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(bg)
-    ) { content() }
+    WallpaperHost { content() }
 }
 
 class MainActivity : ComponentActivity() {
