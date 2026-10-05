@@ -176,7 +176,7 @@ fun MagiskModeRoot() {
                 .windowInsetsPadding(WindowInsets.safeDrawing)
         ) {
             when (page) {
-                0 -> HomePage(state) { tick++ }
+                0 -> HomePage(state, { tick++ }, { tick++ })
                 1 -> SuperUserPage(ctx, state, toast) { tick++ }
                 2 -> ModulePage(ctx, state, toast) { tick++ }
                 else -> SettingsPage(state, toast) { tick++ }
@@ -202,7 +202,7 @@ private fun PageColumn(content: @Composable () -> Unit) {
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun HomePage(state: MagiskUiState, onReload: () -> Unit) {
+private fun HomePage(state: MagiskUiState, onReload: () -> Unit, onRequestRoot: () -> Unit) {
     PageColumn {
         Text("PaperSU", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Medium)
         Card(
@@ -239,8 +239,35 @@ private fun HomePage(state: MagiskUiState, onReload: () -> Unit) {
                 InfoRow("已安装模块", "${state.modules.size} 个")
             }
         }
-        Text(stringResource(R.string.magisk_engine_hint), style = MaterialTheme.typography.bodySmall)
-        TextButton(onClick = onReload) { Text("重新检测") }
+        // 主动请求 root（仅 Magisk 模式有这一块）。
+        // 点一下就跑一次 su，Magisk 会弹出授权框；用户点允许（建议勾永久记住）之后，
+        // hasRoot() 就为 true，界面会变成"工作中"。
+        if (!state.root) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("还没有 root 权限", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "点下面的按钮向 Magisk 申请。弹出授权框后选「允许」，建议勾上「永久记住」，之后这里会变成「工作中」。",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                    TextButton(onClick = onRequestRoot, modifier = Modifier.padding(top = 8.dp)) {
+                        Text("请求 root")
+                    }
+                }
+            }
+        }
+        Row {
+            TextButton(onClick = onRequestRoot) {
+                Text(if (state.root) "重新申请 root" else "请求 root")
+            }
+            TextButton(onClick = onReload) { Text("重新检测") }
+        }
     }
 }
 

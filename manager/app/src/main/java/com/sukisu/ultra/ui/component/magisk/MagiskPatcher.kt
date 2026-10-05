@@ -174,4 +174,17 @@ object MagiskPatcher {
         root("magisk --sqlite \"REPLACE INTO policies (uid,policy,until,logging,notification) VALUES ($uid,2,0,1,1)\"")
     } else {
         root("magisk --sqlite \"DELETE FROM policies WHERE uid=$uid\"")
+    }
+
+    // -----------------------------------------------------------------------
+    // 主动请求 root（只在 Magisk 模式用）
+    //   跑一条 su 命令，Magisk 会弹出授权对话框。用户点了允许，之后 hasRoot() 就为 true。
+    //   必须在 IO 线程上调用，也不能在 setContent 之前调用（会卡启动画面）。
+    //   返回 (是否成功, 输出)。
+    // -----------------------------------------------------------------------
+    fun requestRoot(): Pair<Boolean, String> {
+        val out = root("id")
+        val ok = out.contains("uid=0")
+        Log.i(TAG, "requestRoot -> ok=$ok out=${out.trim()}")
+        return ok to out.trim()
     }}
