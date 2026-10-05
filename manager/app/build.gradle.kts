@@ -27,24 +27,6 @@ val defaultManagerPackageName = if (isPrBuild) "com.sukisu.ultra.pr" else "com.s
 val defaultManagerName = if (isPrBuild) "SukiSU PR" else "SukiSU"
 val managerPackageName = project.findProperty("KSU_PACKAGE_NAME")?.toString() ?: defaultManagerPackageName
 val managerName = project.findProperty("KSU_NAME")?.toString() ?: defaultManagerName
-// ---------------------------------------------------------------------------
-// paperSU: 包名白名单
-//   历史上换包名是为了躲开"按包名拉黑"的检测名单。做法是【编译期】换 applicationId，
-//   再用同一个签名密钥签名 —— 内核校的是证书(size+hash)，不看包名，所以不用重编内核。
-//   ⚠️ 包名在运行时【不可能】改：它是 APK 的安装身份，装完就固定。任何声称能改的
-//      都是在 hook 系统，本项目不做那种事。
-//   这里只允许我们自己的几个包名，避免这个能力被当成通用的"一键改名"滥用。
-// ---------------------------------------------------------------------------
-val allowedManagerPackages = setOf(
-    "top.becuy.eric.papersu",
-    "top.becuy.eric.papersu.lts",
-    "top.becuy.eric.papersu.pro",
-)
-require(managerPackageName in allowedManagerPackages) {
-    "KSU_PACKAGE_NAME=$managerPackageName 不在白名单里。允许的包名：" +
-        allowedManagerPackages.joinToString(", ")
-}
-
 apksign {
     storeFileProperty = "KEYSTORE_FILE"
     storePasswordProperty = "KEYSTORE_PASSWORD"
