@@ -79,15 +79,23 @@ fun checkNewVersion(): LatestVersionInfo {
                         changelog
                     )
                 }
-                // paperSU: 如果 Release 里没有符合 v<ver>_<code>- 命名的 APK，
-                // 就退回用 tag_name 当版本号（tag 是纯数字时），这样随便建的 Release 也能被认到。
-                val tagCode = json.optString("tag_name").trim().removePrefix("v").toLongOrNull()
-                if (tagCode != null && tagCode > 0L) {
+                // paperSU: 如果 Release 里没有符合 v<ver>_<code>- 命名的 APK，就从三个地方
+                // 收集数字候选（tag、release 标题、所有资产名），取最大的那个当版本号。
+                // 这样发布者随便怎么命名（例如 PaperSU-40972.40970.apk）都能被认到。
+                val candidates = mutableListOf<Long>()
+                json.optString("tag_name").trim().removePrefix("v").toLongOrNull()?.let { candidates += it }
+                Regex("(\\d{4,})").findAll(json.optString("name")).forEach { candidates += it.value.toLong() }
+                for (i in 0 until assets.length()) {
+                    val an = assets.getJSONObject(i).getString("name")
+                    Regex("(\\d{4,})").findAll(an).forEach { candidates += it.value.toLong() }
+                }
+                val best = candidates.maxOrNull()
+                if (best != null && best > 0L) {
                     val firstApk = (0 until assets.length())
                         .map { assets.getJSONObject(it) }
                         .firstOrNull { it.getString("name").endsWith(".apk") }
                     return LatestVersionInfo(
-                        tagCode,
+                        best,
                         firstApk?.getString("browser_download_url") ?: json.optString("html_url"),
                         changelog
                     )
