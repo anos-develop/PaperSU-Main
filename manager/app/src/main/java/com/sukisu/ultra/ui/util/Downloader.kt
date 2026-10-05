@@ -79,6 +79,19 @@ fun checkNewVersion(): LatestVersionInfo {
                         changelog
                     )
                 }
+                // paperSU: 如果 Release 里没有符合 v<ver>_<code>- 命名的 APK，
+                // 就退回用 tag_name 当版本号（tag 是纯数字时），这样随便建的 Release 也能被认到。
+                val tagCode = json.optString("tag_name").trim().removePrefix("v").toLongOrNull()
+                if (tagCode != null && tagCode > 0L) {
+                    val firstApk = (0 until assets.length())
+                        .map { assets.getJSONObject(it) }
+                        .firstOrNull { it.getString("name").endsWith(".apk") }
+                    return LatestVersionInfo(
+                        tagCode,
+                        firstApk?.getString("browser_download_url") ?: json.optString("html_url"),
+                        changelog
+                    )
+                }
 
             }
     }

@@ -691,5 +691,5 @@
     <string name="gki_kernel_info">内核信息</string>
     <string name="gki_kernel_unknown">未检测到内核版本</string>
     <string name="gki_reflash_kernel">重新刷入内核</string>
-    <string name="gki_reflash_kernel_summary">重新执行一次内核安装流程（内置模式）</string>    <string name="home_version_mismatch_warning">管理器与内核版本不一致，请重新构建并刷入内核模块，否则可能出现异常</string>
+    <string name="gki_reflash_kernel_summary">重新执行一次内核安装流程（内置模式）</string>    <string name="home_version_mismatch_warning">管理器与内核版本不一致（管理器 %1$s / 内核 %2$s），请重新构建并刷入内核模块，否则可能出现异常</string>
 </resources>

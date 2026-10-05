@@ -698,5 +698,5 @@
     <string name="gki_kernel_info">Kernel information</string>
     <string name="gki_kernel_unknown">Kernel version not detected</string>
     <string name="gki_reflash_kernel">Reflash kernel</string>
-    <string name="gki_reflash_kernel_summary">Run the kernel installation flow again (built-in mode)</string>    <string name="home_version_mismatch_warning">Manager and kernel versions differ. Rebuild and flash the kernel module.</string>
+    <string name="gki_reflash_kernel_summary">Run the kernel installation flow again (built-in mode)</string>    <string name="home_version_mismatch_warning">Manager and kernel versions differ (manager %1$s / kernel %2$s). Rebuild and flash the kernel module.</string>
 </resources>

@@ -137,7 +137,11 @@ fun HomePagerMiuix(
                         WarningCard(stringResource(id = R.string.home_papersu_beta_warning), level = WarningLevel.Notice)
                 if (state.showVersionMismatchWarning) {
                     WarningCard(
-                        stringResource(id = R.string.home_version_mismatch_warning),
+                        stringResource(
+                            id = R.string.home_version_mismatch_warning,
+                            state.currentManagerVersionCode.toString(),
+                            state.ksuVersion?.toString() ?: "?"
+                        ),
                         level = WarningLevel.Error
                     )
                 }
