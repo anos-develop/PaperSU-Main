@@ -87,6 +87,7 @@ import com.sukisu.ultra.ui.component.hideenv.HideEnvHost
 import com.sukisu.ultra.ui.component.hideenv.HideEnvDialogState
 import com.sukisu.ultra.ui.screen.settings.GkiKernelInfoItem
 import com.sukisu.ultra.ui.screen.settings.GkiReflashKernelItem
+import com.sukisu.ultra.ui.component.parasite.ParasiteHost
 
 /**
  * @author weishu
@@ -112,6 +113,9 @@ fun SettingPagerMaterial(
 
     // paperSU: 一键隐藏环境的确认弹窗（内容都在 HideEnvDialog.kt 里）
     HideEnvHost()
+
+    // paperSU: 寄生 —— 网页管理端常驻（ksud 提供），删掉管理器也能用
+    ParasiteHost()
 
     ExpressiveScaffold(
         topBar = {
@@ -172,6 +176,9 @@ fun SettingPagerMaterial(
                                     supportingContent = { Text(stringResource(id = R.string.settings_hide_env_summary)) }
                                 )
                             }
+                        },
+                        {
+                            com.sukisu.ultra.ui.component.parasite.ParasiteRow()
                         }
                     )
                 )

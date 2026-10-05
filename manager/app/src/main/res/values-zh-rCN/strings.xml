@@ -692,4 +692,13 @@
     <string name="gki_kernel_unknown">未检测到内核版本</string>
     <string name="gki_reflash_kernel">重新刷入内核</string>
     <string name="gki_reflash_kernel_summary">重新执行一次内核安装流程（内置模式）</string>    <string name="home_version_mismatch_warning">管理器与内核版本不一致（管理器 %1$s / 内核 %2$s），请重新构建并刷入内核模块，否则可能出现异常</string>
-</resources>
+    <string name="settings_parasite_title">寄生</string>
+    <string name="settings_parasite_summary">网页管理端由 ksud 常驻，删掉管理器后仍可用浏览器管理 root</string>
+    <string name="parasite_confirm_title">寄生</string>
+    <string name="parasite_confirm_message">开启后，网页管理端由 ksud（root 守护进程）常驻，不依赖本应用。删掉管理器之后，用浏览器打开那个带密钥的链接就能继续管理 root。是否开启？</string>
+    <string name="parasite_enable">开启</string>
+    <string name="parasite_cancel">取消</string>
+    <string name="parasite_working">正在启动网页管理端…</string>
+    <string name="parasite_done">已开启。链接已复制到剪贴板，删掉管理器后用它即可：\n\n%1$s</string>
+    <string name="parasite_copied">链接已复制到剪贴板</string>
+    <string name="parasite_failed">开启失败（ksud 不可用或没拿到链接）</string></resources>

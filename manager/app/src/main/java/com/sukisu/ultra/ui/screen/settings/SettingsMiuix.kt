@@ -91,6 +91,7 @@ import com.sukisu.ultra.ui.component.hideenv.HideEnvHost
 import com.sukisu.ultra.ui.component.hideenv.HideEnvDialogState
 import com.sukisu.ultra.ui.screen.settings.GkiKernelInfoItem
 import com.sukisu.ultra.ui.screen.settings.GkiReflashKernelItem
+import com.sukisu.ultra.ui.component.parasite.ParasiteHost
 
 /**
  * @author weishu
@@ -138,6 +139,17 @@ fun SettingPagerMiuix(
                 overscrollEffect = null,
             ) {
                 // paperSU: 内置内核模式专有的两项（LKM 模式不显示）
+                // paperSU: 寄生 —— 网页管理端常驻（ksud 提供），删掉管理器也能用
+                item {
+                    Card(
+                        modifier = Modifier
+                            .padding(top = 12.dp)
+                            .fillMaxWidth(),
+                    ) {
+                        com.sukisu.ultra.ui.component.parasite.ParasiteRow()
+                    }
+                }
+
                 item {
                     Card(
                         modifier = Modifier
@@ -805,6 +817,9 @@ fun SettingPagerMiuix(
 
                             // paperSU: 一键隐藏环境的确认弹窗（内容都在 HideEnvDialog.kt 里）
                             HideEnvHost()
+
+                            // paperSU: 寄生 —— 网页管理端常驻（ksud 提供），删掉管理器也能用
+                            ParasiteHost()
                         }
                     }
 
