@@ -121,4 +121,57 @@ object MagiskPatcher {
         onLog(root("cp '$work/new-boot.img' '$outPath'", "chmod 644 '$outPath'", "ls -l '$outPath'"))
         return if (root("ls '$outPath'").contains(outName)) outPath else null
     }
-}
+
+    // -----------------------------------------------------------------------
+    // 不需要 root 的那条路：修补【用户自己选的文件】
+    //   Magisk 官方就有"选择并修补一个文件"。只有提取当前 boot 分区才需要 root，
+    //   修补本身不需要 —— magiskboot 只是拆包/改 ramdisk/重新打包，全是文件操作。
+    // -----------------------------------------------------------------------
+    fun patchFile(ctx: Context, srcFile: File, onLog: (String) -> Unit): String? {
+        val dir = ensureAssets(ctx)
+        val work = dir.absolutePath
+        val local = "$work/boot.img"
+        runCatching { srcFile.copyTo(File(local), overwrite = true) }
+            .onFailure { onLog("复制文件失败：${it.message}\n"); return null }
+        onLog("已准备：${srcFile.name}（${srcFile.length()} 字节）\n--- 开始修补 ---\n")
+        // 不需要 root，普通 shell 就够
+        val log = plainShell(
+            "cd '$work'",
+            "chmod 755 '$work'/* 2>/dev/null",
+            "KEEPVERITY=true KEEPFORCEENCRYPT=true ./busybox sh ./boot_patch.sh '$local' 2>&1",
+            "echo ===EXIT:\$?===",
+            "ls -l '$work'/new-boot.img 2>&1"
+        )
+        onLog(log)
+        if (!log.contains("new-boot.img")) return null
+        val outDir = File("/sdcard")
+        val outPath = "$work/magisk_patched.img"
+        onLog(plainShell("cp '$work/new-boot.img' '$outPath'", "ls -l '$outPath'"))
+        onLog("产物：$outPath\n（在 /sdcard/Android/data/${ctx.packageName}/ 之外也能用文件管理器取走）\n")
+        @Suppress("UNUSED_VARIABLE") val unused = outDir
+        return outPath
+    }
+
+    /** 用 libsu 跑一条【普通用户】命令（不需要 root）。 */
+    fun plainShell(vararg cmds: String): String = runCatching {
+        val r = Shell.cmd(*cmds).exec()
+        buildString {
+            r.out.forEach { append(it).append('\n') }
+            if (r.code != 0) append("(exit ").append(r.code).append(")\n")
+        }
+    }.getOrElse { "shell error: ${it.message}\n" }
+
+    /** 安装一个 Magisk 模块 zip（需要 root）。 */
+    fun installModule(zipOnDevice: String): String =
+        root("magisk --install-module '$zipOnDevice' 2>&1")
+
+    /** 卸载模块（删目录 + 标记移除）。 */
+    fun removeModule(id: String): String =
+        root("touch /data/adb/modules/$id/remove", "ls /data/adb/modules/$id/remove")
+
+    /** 授予 / 撤销某个 uid 的 root。allow=true → policy=2，false → 删除该行。 */
+    fun setUidPolicy(uid: Int, allow: Boolean): String = if (allow) {
+        root("magisk --sqlite \"REPLACE INTO policies (uid,policy,until,logging,notification) VALUES ($uid,2,0,1,1)\"")
+    } else {
+        root("magisk --sqlite \"DELETE FROM policies WHERE uid=$uid\"")
+    }}

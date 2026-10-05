@@ -1,17 +1,22 @@
 // ---------------------------------------------------------------------------
 // paperSU: Magisk 模式的界面 —— 功能对齐 KernelSU 管理器
 //
-// 内核 4.x 的机器没有 KernelSU，这一档以 Magisk 作为 root 提供者，界面照 KSU 管理器的
-// 结构来：底部四个页签（主页 / 超级用户 / 模块 / 设置），内容全部来自真实的 root 查询。
+// 四页：主页 / 超级用户 / 模块 / 设置。
+//   · 超级用户：列出【所有有启动图标的已安装应用】，用开关给/撤 root —— 和 KSU 一样
+//   · 模块：列出 /data/adb/modules，可启用/停用，可【从 zip 安装】
+//   · 设置：修补 boot 镜像，两条路 —— 提取当前分区（要 root）/ 选文件（不需要 root）
 //
-// 两条硬规则：
-//   1. 所有 root 调用都在 Dispatchers.IO 上，主线程碰它会直接黑屏（踩过）。
-//   2. root 一律走 libsu 的 Shell.cmd()，不要自己 ProcessBuilder("su")（也踩过）。
+// 三条硬规则（全部踩过坑）：
+//   1. root 一律走 libsu 的 Shell.cmd()，不要自己 ProcessBuilder("su")
+//   2. 所有 root 调用都在 Dispatchers.IO，主线程碰它直接黑屏
+//   3. 修补用户选的镜像文件【不需要 root】—— 只有提取当前 boot 分区才需要
 // ---------------------------------------------------------------------------
 package com.sukisu.ultra.ui.component.magisk
 
 import android.content.Context
-import android.content.pm.PackageManager
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,6 +41,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -57,54 +63,47 @@ import com.sukisu.ultra.R
 import com.sukisu.ultra.ui.component.engine.EngineMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 
 // ---------------------------------------------------------------------------
-// 状态与采集
+// 数据
 // ---------------------------------------------------------------------------
 
-data class GrantedApp(val uid: Int, val packages: List<String>, val label: String, val allowed: Boolean)
-
+data class AppEntry(val label: String, val pkg: String, val uid: Int, val allowed: Boolean)
 data class MagiskModule(val id: String, val name: String, val description: String, val enabled: Boolean)
-
 data class MagiskUiState(
     val kernel: String = "",
     val root: Boolean = false,
     val magiskVersion: String = "",
-    val apps: List<GrantedApp> = emptyList(),
+    val magiskInstalled: Boolean = false,
+    val apps: List<AppEntry> = emptyList(),
     val modules: List<MagiskModule> = emptyList(),
-    val installed: Boolean = false,
     val loading: Boolean = true,
 )
 
-private fun labelOf(ctx: Context, pkg: String): String = runCatching {
-    val ai = ctx.packageManager.getApplicationInfo(pkg, 0)
-    ctx.packageManager.getApplicationLabel(ai).toString()
-}.getOrDefault(pkg)
+/** 读取 magisk 授权表里的 uid → 是否允许。 */
+private fun allowedUids(): Set<Int> = runCatching {
+    Regex("uid=(\\d+)").findAll(MagiskPatcher.root("magisk --sqlite \"SELECT uid,policy FROM policies\""))
+        .mapNotNull { it.groupValues[1].toIntOrNull() }.toSet()
+}.getOrDefault(emptySet())
+
+private fun allApps(ctx: Context, allowed: Set<Int>): List<AppEntry> = runCatching {
+    val pm = ctx.packageManager
+    val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+    pm.queryIntentActivities(intent, 0).mapNotNull { ri ->
+        val pkg = ri.activityInfo?.packageName ?: return@mapNotNull null
+        val uid = runCatching { pm.getApplicationInfo(pkg, 0).uid }.getOrNull() ?: return@mapNotNull null
+        val label = runCatching { ri.loadLabel(pm).toString() }.getOrDefault(pkg)
+        AppEntry(label, pkg, uid, uid in allowed)
+    }.distinctBy { it.pkg }.sortedBy { it.label }
+}.getOrDefault(emptyList())
 
 private suspend fun loadState(ctx: Context): MagiskUiState = withContext(Dispatchers.IO) {
-    val kernel = EngineMode.kernelRelease()
     val root = MagiskPatcher.hasRoot()
     val ver = if (root) MagiskPatcher.magiskVersion() else ""
     val installed = root && MagiskPatcher.root("ls /data/adb/magisk").contains("magisk")
-
-    // 已授权应用：magisk --sqlite "SELECT uid,policy FROM policies"
-    val apps = mutableListOf<GrantedApp>()
-    runCatching {
-        val out = MagiskPatcher.root("magisk --sqlite \"SELECT uid,policy FROM policies\"")
-        for (line in out.lineSequence()) {
-            val uid = Regex("uid=(\\d+)").find(line)?.groupValues?.get(1)?.toIntOrNull() ?: continue
-            val pol = Regex("policy=(\\d+)").find(line)?.groupValues?.get(1)?.toIntOrNull() ?: 0
-            val pkgs = runCatching {
-                ctx.packageManager.getPackagesForUid(uid)?.toList().orEmpty()
-            }.getOrDefault(emptyList())
-            if (pkgs.isEmpty()) continue
-            apps += GrantedApp(uid, pkgs, labelOf(ctx, pkgs.first()), pol == 2)
-        }
-    }
-
-    // 模块：/data/adb/modules 下每个目录一个模块
-    val modules = mutableListOf<MagiskModule>()
-    runCatching {
+    val mods = mutableListOf<MagiskModule>()
+    if (root) runCatching {
         val ids = MagiskPatcher.root("ls /data/adb/modules 2>/dev/null")
             .lineSequence().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("(") }
         for (id in ids) {
@@ -112,15 +111,32 @@ private suspend fun loadState(ctx: Context): MagiskUiState = withContext(Dispatc
             val name = Regex("(?m)^name=(.*)$").find(prop)?.groupValues?.get(1)?.trim() ?: id
             val desc = Regex("(?m)^description=(.*)$").find(prop)?.groupValues?.get(1)?.trim() ?: ""
             val disabled = MagiskPatcher.root("ls /data/adb/modules/$id/disable 2>/dev/null").contains("disable")
-            modules += MagiskModule(id, name, desc, !disabled)
+            mods += MagiskModule(id, name, desc, !disabled)
         }
     }
-
-    MagiskUiState(kernel, root, ver, apps, modules, installed, loading = false)
+    MagiskUiState(
+        kernel = EngineMode.kernelRelease(),
+        root = root,
+        magiskVersion = ver,
+        magiskInstalled = installed,
+        apps = allApps(ctx, if (root) allowedUids() else emptySet()),
+        modules = mods,
+        loading = false,
+    )
 }
 
+/** 把 content Uri 复制到应用外部目录（root 也读得到）。 */
+private fun copyUriToCache(ctx: Context, uri: android.net.Uri, name: String): File? = runCatching {
+    val dir = File(ctx.getExternalFilesDir(null), "patch").apply { mkdirs() }
+    val out = File(dir, name)
+    ctx.contentResolver.openInputStream(uri)?.use { input ->
+        out.outputStream().use { input.copyTo(it) }
+    }
+    out
+}.getOrNull()
+
 // ---------------------------------------------------------------------------
-// 根容器：底部导航 + 四页
+// 根容器
 // ---------------------------------------------------------------------------
 
 @Composable
@@ -129,41 +145,45 @@ fun MagiskModeRoot() {
     var page by remember { mutableIntStateOf(0) }
     var state by remember { mutableStateOf(MagiskUiState()) }
     var tick by remember { mutableIntStateOf(0) }
+    var toast by remember { mutableStateOf("") }
 
     LaunchedEffect(tick) { state = loadState(ctx) }
 
     Scaffold(
         bottomBar = {
             NavigationBar {
-                NavigationBarItem(
-                    selected = page == 0, onClick = { page = 0 },
-                    icon = { Icon(Icons.Rounded.Home, "主页") }, label = { Text("主页") }
-                )
-                NavigationBarItem(
-                    selected = page == 1, onClick = { page = 1 },
-                    icon = { Icon(Icons.Rounded.Settings, "超级用户") }, label = { Text("超级用户") }
-                )
-                NavigationBarItem(
-                    selected = page == 2, onClick = { page = 2 },
-                    icon = { Icon(Icons.Rounded.Extension, "模块") }, label = { Text("模块") }
-                )
-                NavigationBarItem(
-                    selected = page == 3, onClick = { page = 3 },
-                    icon = { Icon(Icons.Rounded.Build, "设置") }, label = { Text("设置") }
-                )
+                NavigationBarItem(selected = page == 0, onClick = { page = 0 },
+                    icon = { Icon(Icons.Rounded.Home, "主页") }, label = { Text("主页") })
+                NavigationBarItem(selected = page == 1, onClick = { page = 1 },
+                    icon = { Icon(Icons.Rounded.Settings, "超级用户") }, label = { Text("超级用户") })
+                NavigationBarItem(selected = page == 2, onClick = { page = 2 },
+                    icon = { Icon(Icons.Rounded.Extension, "模块") }, label = { Text("模块") })
+                NavigationBarItem(selected = page == 3, onClick = { page = 3 },
+                    icon = { Icon(Icons.Rounded.Build, "设置") }, label = { Text("设置") })
             }
         }
     ) { pad ->
         Box(modifier = Modifier.fillMaxSize().padding(pad)) {
             when (page) {
                 0 -> HomePage(state) { tick++ }
-                1 -> SuperUserPage(ctx, state) { tick++ }
-                2 -> ModulePage(ctx, state) { tick++ }
-                else -> SettingsPage(state) { tick++ }
+                1 -> SuperUserPage(ctx, state, toast) { tick++ }
+                2 -> ModulePage(ctx, state, toast) { tick++ }
+                else -> SettingsPage(state, toast) { tick++ }
             }
         }
     }
     MagiskHost()
+}
+
+@Composable
+private fun PageColumn(content: @Composable () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) { content() }
 }
 
 // ---------------------------------------------------------------------------
@@ -171,22 +191,9 @@ fun MagiskModeRoot() {
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun PageColumn(content: @Composable () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) { content() }
-}
-
-@Composable
 private fun HomePage(state: MagiskUiState, onReload: () -> Unit) {
     PageColumn {
         Text("PaperSU", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Medium)
-
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
@@ -197,83 +204,68 @@ private fun HomePage(state: MagiskUiState, onReload: () -> Unit) {
                 }
             )
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
+            Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
                     val fg = if (state.root) Color.White else MaterialTheme.colorScheme.onErrorContainer
-                    Text(
-                        text = if (state.loading) "检测中…" else if (state.root) "工作中" else "未获得 root",
-                        style = MaterialTheme.typography.headlineSmall, color = fg
-                    )
+                    Text(if (state.loading) "检测中…" else if (state.root) "工作中" else "未获得 root",
+                        style = MaterialTheme.typography.headlineSmall, color = fg)
                     Text("版本：" + state.magiskVersion.ifBlank { "—" },
                         style = MaterialTheme.typography.bodyMedium, color = fg.copy(alpha = 0.85f))
                     Text("Magisk", style = MaterialTheme.typography.bodyMedium, color = fg.copy(alpha = 0.85f))
                 }
-                Box(
-                    modifier = Modifier.size(56.dp).clip(CircleShape).background(
-                        if (state.root) Color(0xFF19C37D) else MaterialTheme.colorScheme.error
-                    )
-                )
+                Box(Modifier.size(56.dp).clip(CircleShape).background(
+                    if (state.root) Color(0xFF19C37D) else MaterialTheme.colorScheme.error))
             }
         }
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(vertical = 8.dp)) {
                 InfoRow("运行模式", "Magisk（内核 4.x）")
                 InfoRow("内核版本", state.kernel.ifBlank { "读取中…" })
                 InfoRow("Magisk 版本", state.magiskVersion.ifBlank { "—" })
-                InfoRow("Magisk 已安装", if (state.installed) "是" else "否")
-                InfoRow("已授权应用", "${state.apps.size} 个")
+                InfoRow("Magisk 已安装", if (state.magiskInstalled) "是" else "否")
+                InfoRow("已安装应用", "${state.apps.size} 个")
+                InfoRow("已授权 root", "${state.apps.count { it.allowed }} 个")
                 InfoRow("已安装模块", "${state.modules.size} 个")
             }
         }
-
         Text(stringResource(R.string.magisk_engine_hint), style = MaterialTheme.typography.bodySmall)
         TextButton(onClick = onReload) { Text("重新检测") }
     }
 }
 
 // ---------------------------------------------------------------------------
-// 超级用户
+// 超级用户：所有应用 + 开关（和 KSU 一样）
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun SuperUserPage(ctx: Context, state: MagiskUiState, onReload: () -> Unit) {
+private fun SuperUserPage(ctx: Context, state: MagiskUiState, toast: String, onReload: () -> Unit) {
+    var pending by remember { mutableStateOf<Set<Int>>(emptySet()) }
     PageColumn {
         Text("超级用户", style = MaterialTheme.typography.headlineSmall)
-        Text("来自 magisk 的授权策略表，按真实 UID 对应到包名。",
+        Text("下面是你手机上所有有启动图标的应用。打开开关就是给它 root（写进 magisk 的授权表）。",
             style = MaterialTheme.typography.bodySmall)
+        if (toast.isNotEmpty()) Text(toast, style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary)
 
-        if (state.apps.isEmpty()) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Text("（没有已授权的应用）", modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.bodyMedium)
-            }
-        } else {
-            for (app in state.apps) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(app.label, style = MaterialTheme.typography.titleSmall)
-                            Text(app.packages.joinToString(", "),
-                                style = MaterialTheme.typography.bodySmall)
-                            Text("uid=${app.uid}   " + if (app.allowed) "ROOT" else "已拒绝",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (app.allowed) Color(0xFF19C37D) else MaterialTheme.colorScheme.error)
-                        }
-                        TextButton(onClick = {
-                            Thread {
-                                MagiskPatcher.root("magisk --sqlite \"DELETE FROM policies WHERE uid=${app.uid}\"")
-                                Thread.sleep(300)
-                                onReload()
-                            }.start()
-                        }) { Text("撤销") }
+        for (app in state.apps) {
+            val checked = if (app.uid in pending) !app.allowed else app.allowed
+            Card(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(app.label, style = MaterialTheme.typography.titleSmall)
+                        Text(app.pkg, style = MaterialTheme.typography.bodySmall)
+                        Text("uid=${app.uid}", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                    Switch(checked = checked, onCheckedChange = { want ->
+                        pending = pending + app.uid
+                        Thread {
+                            MagiskPatcher.setUidPolicy(app.uid, want)
+                            Thread.sleep(250)
+                            onReload()
+                        }.start()
+                    })
                 }
             }
         }
@@ -282,34 +274,54 @@ private fun SuperUserPage(ctx: Context, state: MagiskUiState, onReload: () -> Un
 }
 
 // ---------------------------------------------------------------------------
-// 模块
+// 模块：列表 + 启用停用 + 从 zip 安装
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun ModulePage(ctx: Context, state: MagiskUiState, onReload: () -> Unit) {
+private fun ModulePage(ctx: Context, state: MagiskUiState, toast: String, onReload: () -> Unit) {
+    var installing by remember { mutableStateOf(false) }
+    var log by remember { mutableStateOf("") }
+    val zipPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        installing = true
+        log = "正在安装…\n"
+        Thread {
+            val f = copyUriToCache(ctx, uri, "module.zip")
+            if (f == null) { log += "复制失败\n"; installing = false; return@Thread }
+            log += MagiskPatcher.installModule(f.absolutePath)
+            Thread.sleep(400)
+            installing = false
+            onReload()
+        }.start()
+    }
+
     PageColumn {
         Text("模块", style = MaterialTheme.typography.headlineSmall)
-        Text("/data/adb/modules 下的模块，点按钮切换启用状态。",
+        Text("/data/adb/modules 下的模块。安装是调 magisk --install-module，和官方一致。",
             style = MaterialTheme.typography.bodySmall)
 
+        Row(Modifier.padding(top = 4.dp)) {
+            TextButton(enabled = !installing, onClick = {
+                zipPicker.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
+            }) { Text(if (installing) "安装中…" else "从 zip 安装") }
+        }
+        if (log.isNotEmpty()) {
+            Text(log, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+        }
+        if (toast.isNotEmpty()) Text(toast, style = MaterialTheme.typography.bodySmall)
+
         if (state.modules.isEmpty()) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Text("（没有安装模块）", modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.bodyMedium)
+            Card(Modifier.fillMaxWidth()) {
+                Text("（没有安装模块）", Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium)
             }
         } else {
             for (m in state.modules) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                Card(Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
                             Text(m.name, style = MaterialTheme.typography.titleSmall)
                             Text(m.id, style = MaterialTheme.typography.bodySmall)
-                            if (m.description.isNotEmpty()) {
-                                Text(m.description, style = MaterialTheme.typography.bodySmall)
-                            }
+                            if (m.description.isNotEmpty()) Text(m.description, style = MaterialTheme.typography.bodySmall)
                             Text(if (m.enabled) "已启用" else "已停用",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (m.enabled) Color(0xFF19C37D) else MaterialTheme.colorScheme.error)
@@ -317,8 +329,7 @@ private fun ModulePage(ctx: Context, state: MagiskUiState, onReload: () -> Unit)
                         TextButton(onClick = {
                             Thread {
                                 val p = "/data/adb/modules/${m.id}/disable"
-                                if (m.enabled) MagiskPatcher.root("touch $p")
-                                else MagiskPatcher.root("rm -f $p")
+                                if (m.enabled) MagiskPatcher.root("touch $p") else MagiskPatcher.root("rm -f $p")
                                 Thread.sleep(300)
                                 onReload()
                             }.start()
@@ -332,17 +343,33 @@ private fun ModulePage(ctx: Context, state: MagiskUiState, onReload: () -> Unit)
 }
 
 // ---------------------------------------------------------------------------
-// 设置
+// 设置：修补镜像（两条路）
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun SettingsPage(state: MagiskUiState, onReload: () -> Unit) {
+private fun SettingsPage(state: MagiskUiState, toast: String, onReload: () -> Unit) {
     val ctx = LocalContext.current
+    var log by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+
+    // 选一个文件来修补 —— 这条路不需要 root
+    val imgPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        busy = true
+        log = "已选择文件，开始修补（不需要 root）…\n"
+        Thread {
+            val f = copyUriToCache(ctx, uri, "chosen_boot.img")
+            if (f == null) { log += "复制失败\n"; busy = false; return@Thread }
+            val out = MagiskPatcher.patchFile(ctx, f) { line -> log += line }
+            log += if (out != null) "\n✓ 完成：$out\n" else "\n✗ 失败\n"
+            busy = false
+        }.start()
+    }
+
     PageColumn {
         Text("设置", style = MaterialTheme.typography.headlineSmall)
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(vertical = 8.dp)) {
                 InfoRow("设备", android.os.Build.MODEL)
                 InfoRow("Android", android.os.Build.VERSION.RELEASE)
                 InfoRow("Magisk 版本", state.magiskVersion.ifBlank { "—" })
@@ -350,30 +377,36 @@ private fun SettingsPage(state: MagiskUiState, onReload: () -> Unit) {
             }
         }
 
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
                 Text(stringResource(R.string.magisk_title), style = MaterialTheme.typography.titleMedium)
                 Text(stringResource(R.string.magisk_summary),
                     style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
-                TextButton(onClick = { MagiskRowState.open() }, modifier = Modifier.padding(top = 8.dp)) {
-                    Text(stringResource(R.string.magisk_start))
+                Text("两条路：\n· 提取当前 boot 分区再修补 —— 需要 root\n· 选一个 boot 镜像文件修补 —— 【不需要 root】",
+                    style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+                Row(Modifier.padding(top = 8.dp)) {
+                    TextButton(enabled = !busy, onClick = { MagiskRowState.open() }) { Text("提取当前 boot 修补") }
+                    TextButton(enabled = !busy, onClick = {
+                        imgPicker.launch(arrayOf("*/*"))
+                    }) { Text(if (busy) "修补中…" else "选文件修补") }
                 }
+                if (log.isNotEmpty()) {
+                    Text(log, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+                }
+                if (toast.isNotEmpty()) Text(toast, style = MaterialTheme.typography.bodySmall)
             }
         }
 
         Text("boot 修补能力来自 Magisk（topjohnwu，GPL-3.0-or-later），许可证随资产一起分发。",
             style = MaterialTheme.typography.bodySmall)
-
         TextButton(onClick = onReload) { Text("重新检测") }
     }
 }
 
 @Composable
 private fun InfoRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         Text(value, style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
