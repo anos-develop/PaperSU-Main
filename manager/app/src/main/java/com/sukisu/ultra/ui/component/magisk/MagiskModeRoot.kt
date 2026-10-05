@@ -64,6 +64,9 @@ import com.sukisu.ultra.ui.component.engine.EngineMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 
 // ---------------------------------------------------------------------------
 // 数据
@@ -150,6 +153,9 @@ fun MagiskModeRoot() {
     LaunchedEffect(tick) { state = loadState(ctx) }
 
     Scaffold(
+        // paperSU: 必须让内容避开状态栏和手势条。之前没写这一行，
+        // 顶部标题会顶到状态栏、列表最后几项会被底部导航栏压住 —— 看起来就是"没显示完全"。
+        contentWindowInsets = WindowInsets.safeDrawing,
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(selected = page == 0, onClick = { page = 0 },
@@ -163,7 +169,12 @@ fun MagiskModeRoot() {
             }
         }
     ) { pad ->
-        Box(modifier = Modifier.fillMaxSize().padding(pad)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(pad)
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+        ) {
             when (page) {
                 0 -> HomePage(state) { tick++ }
                 1 -> SuperUserPage(ctx, state, toast) { tick++ }
@@ -181,7 +192,7 @@ private fun PageColumn(content: @Composable () -> Unit) {
         modifier = Modifier.fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 48.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) { content() }
 }
