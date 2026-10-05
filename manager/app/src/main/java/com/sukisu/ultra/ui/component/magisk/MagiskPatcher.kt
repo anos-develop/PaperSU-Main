@@ -200,4 +200,55 @@ object MagiskPatcher {
         val ok = out.contains("uid=0") || raw.contains("uid=0")
         Log.i(TAG, "requestRoot -> ok=$ok")
         return ok to (if (out.contains("uid=0")) out.trim() else raw)
+    // -----------------------------------------------------------------------
+    // 授权 = 直接写 Magisk 的策略表，不让目标应用弹框
+    //
+    // 这是 Magisk 官方管理器的做法：在它的超级用户列表里勾一个应用，它就直接往
+    // magisk.db 的 policies 表写一行，那个应用下次执行 su 时【不会】弹请求框。
+    // paperSU 作为 root 管理器当然也该这么做 —— 弹框是"没有管理器"时的兜底。
+    //
+    // 前提：paperSU 自己拿到过一次 root。之后：
+    //   · 给别的应用授权 → 直接写表，不弹框
+    //   · 撤销授权       → 直接删行，不弹框
+    // -----------------------------------------------------------------------
+
+    /** 给某个 uid 授权（直写策略表，不触发任何弹窗）。 */
+    fun grantUid(uid: Int): Boolean {
+        val out = root(
+            "magisk --sqlite \"REPLACE INTO policies (uid,policy,until,logging,notification) VALUES ($uid,2,0,1,1)\""
+        )
+        val ok = !out.contains("error", ignoreCase = true)
+        Log.i(TAG, "grantUid($uid) -> $ok : ${out.trim()}")
+        return ok
+    }
+
+    /** 撤销某个 uid 的授权。 */
+    fun revokeUid(uid: Int): Boolean {
+        val out = root("magisk --sqlite \"DELETE FROM policies WHERE uid=$uid\"")
+        Log.i(TAG, "revokeUid($uid) -> ${out.trim()}")
+        return true
+    }
+
+    /**
+     * paperSU 自己拿 root。
+     *   1. 已有 root → 直接把自己的 uid 写成永久，返回。
+     *   2. 还没有 → 走一次 su（唯一一次弹框，而且是给 paperSU 自己），成功后固化成永久。
+     */
+    fun ensureSelfRoot(uid: Int): Pair<Boolean, String> {
+        if (hasRoot()) {
+            grantUid(uid)
+            return true to "已有 root，已固化为永久"
+        }
+        val raw = runCatching {
+            val p = ProcessBuilder("su", "-c", "id").redirectErrorStream(true).start()
+            val s = p.inputStream.bufferedReader().readText()
+            p.waitFor()
+            s.trim()
+        }.getOrElse { "spawn su failed: ${it.message}" }
+        if (hasRoot()) {
+            grantUid(uid)
+            return true to "已获得 root 并固化为永久"
+        }
+        return false to raw
+    }
     }}

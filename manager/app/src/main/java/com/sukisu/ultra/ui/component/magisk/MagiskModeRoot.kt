@@ -252,12 +252,13 @@ private fun HomePage(state: MagiskUiState, onReload: () -> Unit, onRequestRoot: 
                 Column(Modifier.padding(16.dp)) {
                     Text("还没有 root 权限", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "点下面的按钮向 Magisk 申请。弹出授权框后选「允许」，建议勾上「永久记住」，之后这里会变成「工作中」。",
+                        "paperSU 自己需要一次 root。这一下会弹 Magisk 的框 —— 只此一次，而且只针对 paperSU 本身。" +
+                            "允许之后它会把自己的 uid 固化成永久，之后再给别的应用授权就是直接写策略表，不再弹任何框。",
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 4.dp)
                     )
                     TextButton(onClick = onRequestRoot, modifier = Modifier.padding(top = 8.dp)) {
-                        Text("请求 root")
+                        Text("获取 root（仅此一次）")
                     }
                 }
             }
@@ -435,6 +436,33 @@ private fun SettingsPage(state: MagiskUiState, toast: String, onReload: () -> Un
             }
         }
 
+        // 运行模式切换：Magisk 模式 <-> KernelSU 模式，也可以交回自动判定。
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text("运行模式", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    EngineMode.explain(ctx),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                Row(modifier = Modifier.padding(top = 8.dp)) {
+                    TextButton(onClick = {
+                        EngineMode.setOverride(EngineMode.Mode.Magisk, ctx); restartApp(ctx)
+                    }) { Text("Magisk 模式") }
+                    TextButton(onClick = {
+                        EngineMode.setOverride(EngineMode.Mode.KernelSU, ctx); restartApp(ctx)
+                    }) { Text("KernelSU 模式") }
+                    TextButton(onClick = {
+                        EngineMode.setOverride(null, ctx); restartApp(ctx)
+                    }) { Text("自动") }
+                }
+                Text(
+                    "切换后应用会自动重启并加载对应界面。",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
         Text("boot 修补能力来自 Magisk（topjohnwu，GPL-3.0-or-later），许可证随资产一起分发。",
             style = MaterialTheme.typography.bodySmall)
         TextButton(onClick = onReload) { Text("重新检测") }
@@ -448,5 +476,15 @@ private fun InfoRow(label: String, value: String) {
         Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         Text(value, style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** 切换模式后重启应用，让 setContent 重新按新模式分流。 */
+private fun restartApp(ctx: Context) {
+    runCatching {
+        val i = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName) ?: return@runCatching
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        ctx.startActivity(i)
+        (ctx as? android.app.Activity)?.finish()
     }
 }
