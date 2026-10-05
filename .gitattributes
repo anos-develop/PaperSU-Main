@@ -1,1 +1,7 @@
 *.bat eol=crlf
+# paperSU: shell scripts and embedded resources must stay LF. core.autocrlf=true on Windows
+# converted installer.sh to CRLF, and because ksud embeds it with include_str! at compile time
+# the built ksud shipped "umask 022<CR>" and failed with "illegal mode: 022" on device.
+*.sh   text eol=lf
+banner text eol=lf
+*.rs   text eol=lf
