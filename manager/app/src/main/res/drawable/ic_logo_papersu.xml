@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- paperSU splash logo. Replaces the KernelSU logo vector: same rounded-square
-     plate, but the artwork is the paperSU "P" plus an accent underline. The
+<!-- paperSU splash logo. Replaces the KernelSU logo vector: no plate at all:
+     just the paperSU "P" and its accent underline, on a transparent background. The
      paths are named so animator targets can draw them on one stroke at a time. -->
+<!-- @color/ic_launcher_foreground 是 P，@color/ic_splash_accent 是横杠；
+     方板已移除，所以背景透明。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -11,11 +13,9 @@
         android:name="splash_content"
         android:pivotX="250"
         android:pivotY="250"
-        android:scaleX="0.60"
-        android:scaleY="0.60">
-        <path
-            android:fillColor="@color/ic_splash_background"
-            android:pathData="M135,25h230a110,110 0 0 1 110,110v230a110,110 0 0 1 -110,110h-230a110,110 0 0 1 -110,-110v-230a110,110 0 0 1 110,-110z" />
+        android:scaleX="0.82"
+        android:scaleY="0.82">
+
         <path
             android:name="papersu_p"
             android:fillColor="@android:color/transparent"
