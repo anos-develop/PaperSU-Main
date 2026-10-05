@@ -210,17 +210,10 @@ fun SearchAppBar(
     ExpandedFullScreenContainedSearchBar(
         state = searchBarState,
         inputField = inputField,
-        // paperSU: expanded search needs its own opaque container colour. The theme makes
-        // surface translucent so the wallpaper shows through, and this full screen state
-        // had no container colour of its own, so it composited over nothing and went black.
-        colors = SearchBarDefaults.colors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 1f)),
         windowInsets = { SearchBarDefaults.fullScreenWindowInsets.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal) },
         content = {
             val bottomPadding = SearchBarDefaults.fullScreenWindowInsets.asPaddingValues().calculateBottomPadding()
-            // paperSU: expanded search content needs its own opaque floor. Everything here is
-            // translucent by design (the wallpaper shows through), and this Box had none, so the
-            // whole list area rendered over nothing and read as solid black.
-            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = 1f))) {
+            Box(modifier = Modifier.fillMaxSize()) {
                 if (currentQuery.isNotEmpty()) {
                     searchContent(bottomPadding, collapseAndClear)
                 } else {
