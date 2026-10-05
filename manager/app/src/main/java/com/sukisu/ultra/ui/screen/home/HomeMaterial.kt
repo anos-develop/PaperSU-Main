@@ -100,7 +100,6 @@ fun HomePagerMaterial(
                 UpdateCard(state = state, actions = actions)
             }
             // paperSU: 内测提示横幅，放在首页最上方
-            WarningCard(stringResource(id = R.string.home_papersu_beta_warning), level = WarningLevel.Notice)
                 if (state.showVersionMismatchWarning) {
                     WarningCard(
                         stringResource(
