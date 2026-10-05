@@ -16,7 +16,8 @@ import top.yukonga.miuix.kmp.preference.ArrowPreference
 fun ParasiteRow() {
     val title = stringResource(R.string.settings_parasite_title)
     val summary = stringResource(R.string.settings_parasite_summary)
-    val onTap = { ParasiteDialogState.open() }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val onTap = { ParasiteDialogState.open(ctx) }
     if (LocalUiMode.current == UiMode.Miuix) {
         ArrowPreference(
             title = title,

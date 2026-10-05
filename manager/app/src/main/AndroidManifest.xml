@@ -178,6 +178,12 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+            <!-- paperSU: 寄生授权接口。只有白名单里的应用能通过它拿到网页控制台链接。 -->
+        <provider
+            android:name="com.sukisu.ultra.ui.component.parasite.ParasiteAuthProvider"
+            android:authorities="${applicationId}.parasite.auth"
+            android:exported="true"
+            android:enabled="true" />
     </application>
 
 </manifest>

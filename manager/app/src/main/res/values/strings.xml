@@ -708,4 +708,10 @@
     <string name="parasite_working">Starting the web console…</string>
     <string name="parasite_done">Enabled. The link is on your clipboard, use it after removing the manager:\n\n%1$s</string>
     <string name="parasite_copied">Link copied to clipboard</string>
-    <string name="parasite_failed">Failed to enable (ksud unavailable, or no link returned)</string></resources>
+    <string name="parasite_failed">Failed to enable (ksud unavailable, or no link returned)</string>    <string name="parasite_whitelist_title">Authorized packages</string>
+    <string name="parasite_whitelist_hint">Only the packages listed here can obtain the web console link through the interface below.</string>
+    <string name="parasite_whitelist_empty">(empty — no app is authorized)</string>
+    <string name="parasite_add_label">Package name</string>
+    <string name="parasite_add">Add</string>
+    <string name="parasite_revoke">Remove</string>
+    <string name="parasite_authority_hint">Authorizer authority: %1$s\nCall it from your app with ContentResolver.call(); methods: isAllowed / getWebAdminUrl / getStatus.</string></resources>

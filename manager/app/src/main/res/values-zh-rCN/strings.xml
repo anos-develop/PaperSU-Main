@@ -701,4 +701,10 @@
     <string name="parasite_working">正在启动网页管理端…</string>
     <string name="parasite_done">已开启。链接已复制到剪贴板，删掉管理器后用它即可：\n\n%1$s</string>
     <string name="parasite_copied">链接已复制到剪贴板</string>
-    <string name="parasite_failed">开启失败（ksud 不可用或没拿到链接）</string></resources>
+    <string name="parasite_failed">开启失败（ksud 不可用或没拿到链接）</string>    <string name="parasite_whitelist_title">授权白名单</string>
+    <string name="parasite_whitelist_hint">只有名单里的包名能通过下面的接口拿到网页控制台链接。</string>
+    <string name="parasite_whitelist_empty">（空 —— 当前没有任何应用被授权）</string>
+    <string name="parasite_add_label">包名</string>
+    <string name="parasite_add">添加</string>
+    <string name="parasite_revoke">移除</string>
+    <string name="parasite_authority_hint">授权接口 authority：%1$s\n你的应用用 ContentResolver.call() 调用，支持 isAllowed / getWebAdminUrl / getStatus。</string></resources>
