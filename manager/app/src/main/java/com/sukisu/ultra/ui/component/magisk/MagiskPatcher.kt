@@ -1,108 +1,124 @@
 // ---------------------------------------------------------------------------
 // paperSU: Magisk 模式的 boot 修补
 //
-// 内核 4.x 的机器走这一套：把 Magisk 的修补链（magiskboot / magiskinit / magisk /
-// init-ld / stub.apk + boot_patch.sh）从 APK 的 assets 解出来，然后照 Magisk 官方
-// 的方式修补一份 boot 镜像，产出 magisk_patched.img。
+// 内核 4.x 的机器走这一套：把 Magisk 的修补链从 APK 的 assets 解出来，照 Magisk 官方的
+// 方式修补一份 boot 镜像，产出 magisk_patched.img。
 //
-// 修补能力来自 Magisk（topjohnwu，GPL-3.0-or-later），LICENSE 随资产一起放在
-// assets/magisk/LICENSE-Magisk。本文件只做"解包 + 调用 + 收结果"，不改 Magisk 逻辑。
+// 关键点：
+//   · root 必须走 libsu（com.topjohnwu.superuser），也就是 Magisk 官方用的那套。
+//     自己 ProcessBuilder("su","-c",...) 在 Android 应用里不可靠 —— 表现就是 su 明明
+//     有授权，命令却拿不到 root。
+//   · assets 解出来的文件【没有执行位】，必须显式 setExecutable。
+//   · 所有 su 调用都在 IO 线程上跑（调用方负责），绝不占主线程。
 //
-// 注意：assets 解出来的文件【没有执行位】，必须显式 chmod 755 —— 这是个老坑。
+// 修补能力来自 Magisk（topjohnwu，GPL-3.0-or-later），LICENSE 随资产放在
+// assets/magisk/LICENSE-Magisk。
 // ---------------------------------------------------------------------------
 package com.sukisu.ultra.ui.component.magisk
 
 import android.content.Context
+import android.util.Log
+import com.topjohnwu.superuser.Shell
 import java.io.File
 
 object MagiskPatcher {
 
-    /** 随 APK 打包的 Magisk 资产目录名。 */
+    private const val TAG = "paperSU-magisk"
     private const val ASSET_DIR = "magisk"
 
-    /** 需要可执行位的文件。 */
     private val EXECUTABLES = setOf(
         "busybox", "magiskboot", "magiskinit", "magisk", "magiskpolicy", "init-ld"
     )
 
-    /** 工作目录：/data/data/<pkg>/files/magisk。 */
     fun workDir(ctx: Context): File = File(ctx.filesDir, ASSET_DIR)
 
-    /** 把资产解到工作目录并补上执行位；已解过则直接复用。 */
+    /** 用 libsu 跑一条 root 命令，返回合并后的输出。 */
+    fun root(vararg cmds: String): String = runCatching {
+        val r = Shell.cmd(*cmds).exec()
+        val sb = StringBuilder()
+        r.out.forEach { sb.append(it).append('\n') }
+        if (r.code != 0) sb.append("(exit ").append(r.code).append(")\n")
+        sb.toString()
+    }.getOrElse { e ->
+        Log.w(TAG, "root command failed", e)
+        "libsu error: ${e.message}\n"
+    }
+
+    /** 有没有 root。 */
+    fun hasRoot(): Boolean = runCatching {
+        val r = Shell.cmd("id").exec()
+        r.isSuccess && r.out.any { it.contains("uid=0") }
+    }.getOrDefault(false)
+
+    /** Magisk 版本串，例如 "30.7:MAGISK:R"。 */
+    fun magiskVersion(): String = root("magisk -v").trim().lineSequence().firstOrNull().orEmpty().trim()
+
+    /** 已授权的应用数量。 */
+    fun policyCount(): Int = runCatching {
+        val out = root("magisk --sqlite \"SELECT uid FROM policies\"")
+        out.lineSequence().count { it.contains("uid=") }
+    }.getOrDefault(0)
+
+    /** 模块数量。 */
+    fun moduleCount(): Int = runCatching {
+        val out = root("ls /data/adb/modules 2>/dev/null")
+        out.lineSequence().map { it.trim() }.count { it.isNotEmpty() && !it.startsWith("(") }
+    }.getOrDefault(0)
+
+    /** 把资产解到工作目录并补执行位。 */
     fun ensureAssets(ctx: Context): File {
         val dir = workDir(ctx)
         if (!dir.exists()) dir.mkdirs()
-        val am = ctx.assets
-        val names = am.list(ASSET_DIR).orEmpty()
+        val names = ctx.assets.list(ASSET_DIR).orEmpty()
         for (name in names) {
             val out = File(dir, name)
-            // 可执行的每次都重写（保证权限）；其余只补缺失的
             if (name in EXECUTABLES || !out.exists()) {
-                am.open("$ASSET_DIR/$name").use { input ->
-                    out.outputStream().use { input.copyTo(it) }
-                }
+                runCatching {
+                    ctx.assets.open("$ASSET_DIR/$name").use { input ->
+                        out.outputStream().use { input.copyTo(it) }
+                    }
+                }.onFailure { Log.w(TAG, "extract $name failed", it) }
             }
             if (name in EXECUTABLES) out.setExecutable(true, false)
         }
-        // 脚本也要可读可执行
         for (s in listOf("boot_patch.sh", "util_functions.sh")) {
             File(dir, s).takeIf { it.exists() }?.setExecutable(true, false)
         }
         return dir
     }
 
-    private fun su(cmd: String): String = runCatching {
-        val p = ProcessBuilder("su", "-c", cmd).redirectErrorStream(true).start()
-        val out = p.inputStream.bufferedReader().readText()
-        p.waitFor()
-        out
-    }.getOrDefault("")
-
-    /**
-     * 把当前系统的 boot 分区 dump 到 /sdcard/papersu_stock_boot.img。
-     * 小米这台 boot 在 /dev/block/by-name/boot，需要 root 才读得到。
-     * 返回可读的路径（失败返回 null）。
-     */
+    /** 提取当前 boot 分区。成功返回设备路径。 */
     fun dumpCurrentBoot(): String? {
         val out = "/sdcard/papersu_stock_boot.img"
-        val log = su("dd if=/dev/block/by-name/boot of=$out bs=4096 2>&1; ls -l $out 2>&1")
-        return if (log.contains("No such") || log.contains("Permission denied") || log.contains("denied")) null else out
+        val log = root("dd if=/dev/block/by-name/boot of=$out bs=4096 2>&1", "ls -l $out")
+        Log.i(TAG, "dump: $log")
+        return if (log.contains("No such") || log.contains("Permission denied")) null else out
     }
 
     /**
-     * 修补一份 boot 镜像。返回产出文件在【设备上】的路径，失败返回 null。
-     * bootOnDevice 必须是设备上的真实路径（比如 /sdcard/papersu_stock_boot.img）。
-     * onLog 会收到每一步的输出，方便界面显示。
+     * 修补一份 boot 镜像。bootOnDevice 是设备上的路径。
+     * 返回 /sdcard/magisk_patched.img 或 null。
      */
     fun patch(ctx: Context, bootOnDevice: String, onLog: (String) -> Unit): String? {
         val dir = ensureAssets(ctx)
         val work = dir.absolutePath
+        val local = "$work/boot.img"
         val outName = "magisk_patched.img"
         val outPath = "/sdcard/$outName"
 
-        // 把 boot 镜像复制进工作目录（boot_patch.sh 要在同目录里干活）
-        val local = "$work/boot.img"
-        onLog(su("cp '$bootOnDevice' '$local' && ls -l '$local'"))
-
-        // 照着 Magisk 的方式跑：cd 到工作目录，busybox sh boot_patch.sh boot.img
-        val cmd = buildString {
-            append("cd '$work' && ")
-            append("export PATH='$work':\$PATH && ")
-            append("chmod 755 '$work'/* 2>/dev/null; ")
-            append("KEEPVERITY=true KEEPFORCEENCRYPT=true ./busybox sh ./boot_patch.sh '$local' 2>&1; ")
-            append("echo \"===EXIT:\$?===\"; ")
-            append("ls -l '$work'/new-boot.img 2>&1")
-        }
-        val log = su(cmd)
+        onLog(root("cp '$bootOnDevice' '$local'", "ls -l '$local'"))
+        onLog("--- 开始修补 ---\n")
+        val log = root(
+            "cd '$work'",
+            "chmod 755 '$work'/* 2>/dev/null",
+            "KEEPVERITY=true KEEPFORCEENCRYPT=true ./busybox sh ./boot_patch.sh '$local' 2>&1",
+            "echo ===EXIT:\$?===",
+            "ls -l '$work'/new-boot.img 2>&1"
+        )
         onLog(log)
         if (!log.contains("new-boot.img")) return null
-
-        // 搬到 /sdcard 方便用户取用
-        val moved = su("cp '$work/new-boot.img' '$outPath' && chmod 644 '$outPath' && ls -l '$outPath'")
-        onLog(moved)
-        return if (moved.contains(outName)) outPath else null
+        onLog("--- 复制产物 ---\n")
+        onLog(root("cp '$work/new-boot.img' '$outPath'", "chmod 644 '$outPath'", "ls -l '$outPath'"))
+        return if (root("ls '$outPath'").contains(outName)) outPath else null
     }
-
-    /** 从输出里抠出 Magisk 的版本信息，界面用。 */
-    fun version(ctx: Context): String = su("'${workDir(ctx).absolutePath}/magisk' -v 2>&1").trim()
 }
