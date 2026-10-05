@@ -183,8 +183,21 @@ object MagiskPatcher {
     //   返回 (是否成功, 输出)。
     // -----------------------------------------------------------------------
     fun requestRoot(): Pair<Boolean, String> {
+        // 第一步：用最朴素的方式敲一次 su。
+        //   为什么必须这样：libsu 在探测不到可用 su 时，会走它自己的"Magisk 未安装"
+        //   引导（弹"需要下载完整版 Magisk"），而不是向已有的 Magisk 申请授权。
+        //   直接 spawn 一个 su 进程才是让 Magisk 弹授权框的那条路。
+        val raw = runCatching {
+            val p = ProcessBuilder("su", "-c", "id").redirectErrorStream(true).start()
+            val s = p.inputStream.bufferedReader().readText()
+            p.waitFor()
+            s.trim()
+        }.getOrElse { "spawn su failed: ${it.message}" }
+        Log.i(TAG, "requestRoot raw su -> $raw")
+
+        // 第二步：再用 libsu 拿一份规范输出（用户点了允许之后这次就能成功）。
         val out = root("id")
-        val ok = out.contains("uid=0")
-        Log.i(TAG, "requestRoot -> ok=$ok out=${out.trim()}")
-        return ok to out.trim()
+        val ok = out.contains("uid=0") || raw.contains("uid=0")
+        Log.i(TAG, "requestRoot -> ok=$ok")
+        return ok to (if (out.contains("uid=0")) out.trim() else raw)
     }}
