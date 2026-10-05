@@ -73,6 +73,7 @@ import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.basic.Search
 import top.yukonga.miuix.kmp.icon.basic.SearchCleanup
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
+import androidx.compose.ui.graphics.Color
 
 /** Like `padding(top = …)` but reads [top] in the layout phase, so a frame-rate value relayouts instead of recomposing. */
 internal fun Modifier.deferredTopPadding(top: () -> Dp): Modifier = layout { measurable, constraints ->
@@ -133,13 +134,11 @@ fun SearchStatus.SearchPager(
         animationSpec = tween(200, easing = FastOutSlowInEasing),
         label = "SearchPagerSurfaceAlpha"
     )
-    val surfaceColor = colorScheme.surface
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .zIndex(5f)
-            .drawBehind { drawRect(surfaceColor.copy(alpha = surfaceAlpha)) }
             .then(
                 if (!searchStatus.isCollapsed()) {
                     Modifier
@@ -158,7 +157,7 @@ fun SearchStatus.SearchPager(
                 .fillMaxWidth()
                 .padding(top = topPadding)
                 .then(
-                    if (!searchStatus.isCollapsed()) Modifier.background(colorScheme.surface)
+                    if (!searchStatus.isCollapsed()) Modifier.background(Color.Transparent)
                     else Modifier
                 ),
             horizontalArrangement = Arrangement.Start,
@@ -168,7 +167,7 @@ fun SearchStatus.SearchPager(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .background(colorScheme.surface)
+                        .background(Color.Transparent)
                 ) {
                     expandBar(searchStatus, onSearchStatusChange, searchBarTopPadding)
                 }
