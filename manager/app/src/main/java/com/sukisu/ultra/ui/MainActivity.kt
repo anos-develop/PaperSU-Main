@@ -305,15 +305,32 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // paperSU: draw the 7kimisu wallpaper layer behind the UI. With no
-                        // wallpaper configured WallpaperHost just calls content() unchanged.
-                        WallpaperHost {
-                            when (uiMode) {
-                                UiMode.Material -> androidx.compose.material3.Scaffold(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainer
-                                ) { navDisplay() }
+                        // paperSU: 根部必须有【一层真正不透明】的底。
+                        // 主题为了透壁纸，把 background / surface 全改成了半透明；而 Scaffold 的
+                        // 默认容器色就是 background。壁纸没设置时 WallpaperHost 不画任何东西，
+                        // 于是整棵 UI 树合成到"没有底"上 → 全黑（全屏搜索页最明显）。
+                        // 之前只在各个二级 entry 上补（OpaquePage），但 Route.Main 承载了
+                        // 底部导航那整套 tab 界面，它是唯一没被包的那个，所以白补了三轮。
+                        // 这层放在 WallpaperHost 下面：有壁纸 → 壁纸盖住它；没壁纸 → 就是它。
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    if (uiMode == UiMode.Miuix) {
+                                        MiuixTheme.colorScheme.background.copy(alpha = 1f)
+                                    } else {
+                                        MaterialTheme.colorScheme.background.copy(alpha = 1f)
+                                    }
+                                )
+                        ) {
+                            WallpaperHost {
+                                when (uiMode) {
+                                    UiMode.Material -> androidx.compose.material3.Scaffold(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                                    ) { navDisplay() }
 
-                                UiMode.Miuix -> Scaffold { navDisplay() }
+                                    UiMode.Miuix -> Scaffold { navDisplay() }
+                                }
                             }
                         }
                         SideEffect { contentReady = true }
