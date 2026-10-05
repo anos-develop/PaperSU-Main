@@ -58,6 +58,7 @@ object ParasiteDialogState {
         url = ""
         busy = false
         input = ""
+        ParasiteWhitelist.migrateIfNeeded(ctx)
         allowed = ParasiteWhitelist.get(ctx)
         authority = "${ctx.packageName}.parasite.auth"
         show = true
