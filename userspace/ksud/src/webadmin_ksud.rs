@@ -1307,9 +1307,25 @@ fn stealth_enabled() -> bool {
 
 /// The dialer code that leaves hidden mode.
 ///
-/// paperSU keeps this in the manager app's preferences, which ksud cannot read, so all we
-/// can report is the shipped default. `set_stealth_code` therefore refuses to change it.
+/// paperSU keeps this in the manager app's preferences. ksud runs as root, so instead of
+/// reporting a hardcoded default it reads that preferences XML directly, which keeps the
+/// web page and the manager showing the same code. `set_stealth_code` still refuses to
+/// change it: the manager owns this value, ksud only reports it.
 fn stealth_code() -> String {
+    const PREFS: &str = "/data/data/top.becuy.eric.papersu/shared_prefs/settings.xml";
+    if let Ok(xml) = std::fs::read_to_string(PREFS) {
+        let key = "<string name=\"stealth_code\">";
+        if let Some(i) = xml.find(key) {
+            let rest = &xml[i + key.len()..];
+            if let Some(j) = rest.find("</string>") {
+                let v = rest[..j].trim();
+                if !v.is_empty() {
+                    return v.to_string();
+                }
+            }
+        }
+    }
+    // 读不到（没设置过 / 还没装管理器）就退回内置默认值
     "70707".to_string()
 }
 

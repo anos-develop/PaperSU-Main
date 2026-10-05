@@ -79,7 +79,26 @@ object HideEnvInstaller {
             fi
             [ -s hide-module.zip ] || { echo "NODL"; exit 2; }
             echo "SIZE=${'$'}(stat -c%s hide-module.zip 2>/dev/null || echo '?')"
-            ksud module install "${'$'}D/hide-module.zip"
+            KSUD=""
+            for c in /data/adb/ksu/bin/ksud /data/adb/ksud /system/bin/ksud /system/xbin/ksud; do
+                if [ -x "${'$'}c" ]; then KSUD="${'$'}c"; break; fi
+            done
+            if [ -z "${'$'}KSUD" ]; then
+                KSUD=$(command -v ksud 2>/dev/null || true)
+            fi
+            if [ -z "${'$'}KSUD" ]; then
+                echo "NOKSUD"
+                echo "[-] 找不到 ksud（已找过 /data/adb/ksu/bin/ksud、/data/adb/ksud、PATH）"
+                exit 4
+            fi
+            echo "KSUD=${'$'}KSUD"
+            "${'$'}KSUD" module install "${'$'}D/hide-module.zip"
+            rc=${'$'}?
+            echo "KSUD_RC=${'$'}rc"
+            if [ "${'$'}rc" -ne 0 ]; then
+                echo "INSTALL_FAILED"
+                exit 5
+            fi
             echo "INSTALLED"
         """.trimIndent()
 
@@ -95,7 +114,7 @@ object HideEnvInstaller {
         result.err.forEach { emit("[stderr] $it") }
 
         val text = sb.toString()
-        val ok = text.contains("INSTALLED") && !text.contains("NODL") && !text.contains("EMPTY")
+        val ok = text.contains("INSTALLED") && !text.contains("NODL") && !text.contains("EMPTY") && !text.contains("NOKSUD") && !text.contains("INSTALL_FAILED")
         if (ok) emit("[+] 模块已刷入，请重启手机使隐藏环境生效")
         else emit("[-] 未成功，请检查上面的日志（网络 / 地址 / ksud 是否可用）")
         Result(ok, sb.toString())

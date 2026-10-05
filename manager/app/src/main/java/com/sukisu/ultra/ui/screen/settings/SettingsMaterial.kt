@@ -150,19 +150,12 @@ fun SettingPagerMaterial(
                             // paperSU: 一键隐藏环境（移植自月虹隐藏模块）
                             val hideEnvContext = LocalContext.current
                             var hideEnvOn by remember { mutableStateOf(Stealth.isEnabled()) }
-                            SegmentedSwitchItem(
-                                icon = Icons.Rounded.VisibilityOff,
-                                title = stringResource(id = R.string.settings_hide_env_title),
-                                summary = stringResource(id = R.string.settings_hide_env_summary),
-                                checked = hideEnvOn,
-                                onCheckedChange = { want ->
-                                    if (want) {
-                                        HideEnvDialogState.open()
-                                    } else {
-                                        Stealth.setEnabled(false)
-                                        restartUiFresh(hideEnvContext)
-                                    }
-                                }
+                            // paperSU: 这是一个"按钮"而不是开关 —— 点它弹出确认窗，再下载并刷入
+                            // paperSU: 这是一个"按钮"而不是开关 —— 点它弹出确认窗，再下载并刷入
+                            SegmentedListItem(
+                                onClick = { HideEnvDialogState.open() },
+                                headlineContent = { Text(stringResource(id = R.string.settings_hide_env_title)) },
+                                supportingContent = { Text(stringResource(id = R.string.settings_hide_env_summary)) }
                             )
                         }
                     )

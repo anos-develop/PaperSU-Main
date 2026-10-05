@@ -173,9 +173,11 @@ fun SettingPagerMiuix(
                             // paperSU: 一键隐藏环境（移植自月虹隐藏模块）
                             val hideEnvContext2 = LocalContext.current
                             var hideEnvOn2 by remember { mutableStateOf(Stealth.isEnabled()) }
-                            SwitchPreference(
+                            // paperSU: 这是一个"按钮"而不是开关 —— 点它弹出确认窗，再下载并刷入
+                            ArrowPreference(
                                 title = stringResource(id = R.string.settings_hide_env_title),
                                 summary = stringResource(id = R.string.settings_hide_env_summary),
+                                onClick = { HideEnvDialogState.open() },
                                 startAction = {
                                     Icon(
                                         Icons.Rounded.VisibilityOff,
@@ -183,15 +185,6 @@ fun SettingPagerMiuix(
                                         contentDescription = stringResource(id = R.string.settings_hide_env_title),
                                         tint = colorScheme.onBackground
                                     )
-                                },
-                                checked = hideEnvOn2,
-                                onCheckedChange = { want ->
-                                    if (want) {
-                                        HideEnvDialogState.open()
-                                    } else {
-                                        Stealth.setEnabled(false)
-                                        restartUiFresh(hideEnvContext2)
-                                    }
                                 }
                             )
                         }
