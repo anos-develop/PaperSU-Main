@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.background
 
 @Composable
 fun SearchAppBar(
@@ -216,7 +217,10 @@ fun SearchAppBar(
         windowInsets = { SearchBarDefaults.fullScreenWindowInsets.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal) },
         content = {
             val bottomPadding = SearchBarDefaults.fullScreenWindowInsets.asPaddingValues().calculateBottomPadding()
-            Box(modifier = Modifier.fillMaxSize()) {
+            // paperSU: expanded search content needs its own opaque floor. Everything here is
+            // translucent by design (the wallpaper shows through), and this Box had none, so the
+            // whole list area rendered over nothing and read as solid black.
+            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = 1f))) {
                 if (currentQuery.isNotEmpty()) {
                     searchContent(bottomPadding, collapseAndClear)
                 } else {
