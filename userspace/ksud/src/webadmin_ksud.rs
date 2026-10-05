@@ -1312,20 +1312,14 @@ fn stealth_enabled() -> bool {
 /// web page and the manager showing the same code. `set_stealth_code` still refuses to
 /// change it: the manager owns this value, ksud only reports it.
 fn stealth_code() -> String {
-    const PREFS: &str = "/data/data/top.becuy.eric.papersu/shared_prefs/settings.xml";
-    if let Ok(xml) = std::fs::read_to_string(PREFS) {
-        let key = "<string name=\"stealth_code\">";
-        if let Some(i) = xml.find(key) {
-            let rest = &xml[i + key.len()..];
-            if let Some(j) = rest.find("</string>") {
-                let v = rest[..j].trim();
-                if !v.is_empty() {
-                    return v.to_string();
-                }
-            }
+    // paperSU: 管理器把解锁码同时写到 /data/adb/ksu/stealth_code（见 ksu_size.txt 里的证据）。
+    // ksud 以 root 运行，读这个文件没有 SELinux 问题，所以网页与管理器显示的码始终一致。
+    if let Ok(v) = std::fs::read_to_string("/data/adb/ksu/stealth_code") {
+        let v = v.trim();
+        if !v.is_empty() {
+            return v.to_string();
         }
     }
-    // 读不到（没设置过 / 还没装管理器）就退回内置默认值
     "70707".to_string()
 }
 

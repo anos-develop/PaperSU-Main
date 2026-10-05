@@ -1,43 +1,40 @@
 // ---------------------------------------------------------------------------
 // paperSU: 一键隐藏环境
-//   点击后由用户确认 → 用 sh 脚本从云端下载隐藏模块 → 交给 ksud 刷入。
-//   隐藏模块自身会再分出子模块，那部分不在本文件职责内。
+//   点击 → 用户确认 → 从 APK 内置资源解出隐藏模块 → 交给 ksud 刷入。
+//   ⚠️ 不再联网下载：实测 raw.githubusercontent.com 与 jsDelivr 在目标网络下都会失败，
+//      所以模块直接打进 APK（assets/hide-module.zip），离线也能装。
 // ---------------------------------------------------------------------------
 package com.sukisu.ultra.ui.util
 
+import android.content.Context
 import android.util.Log
 import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 
 object HideEnvInstaller {
 
     private const val TAG = "paperSU-hide-env"
 
-    /**
-     * ⚠️ 占位地址 —— 把这里换成隐藏模块的真实直链（一个 zip 包）。
-     *
-     * 换法：只改这一行的字符串即可，下面的脚本与刷入流程都不用动。
-     * 例：const val MODULE_URL = "https://github.com/你的账号/你的仓库/releases/download/v1/hide-module.zip"
-     */
-    const val MODULE_URL: String = "https://raw.githubusercontent.com/anos-develop/PaperSU-Main/main/Magisk-Modle/hide-module.zip"
-
-    /**
-     * 备用镜像（同一份文件，走 jsDelivr CDN）。
-     * 国内直连 raw.githubusercontent.com 经常失败，所以脚本会先试上面那个，
-     * 失败再试这个；两个都试过才算失败。
-     */
-    const val MODULE_URL_MIRROR: String = "https://cdn.jsdelivr.net/gh/anos-develop/PaperSU-Main@main/Magisk-Modle/hide-module.zip"
-
-    /** 占位地址检测：还没换成真地址时，直接告诉用户，别去网上瞎请求。 */
-    fun isPlaceholder(): Boolean = MODULE_URL.contains("example.com")
+    /** APK 内置的隐藏模块。 */
+    private const val ASSET_NAME = "hide-module.zip"
 
     data class Result(val ok: Boolean, val log: String)
 
+    /** 把内置模块解到应用缓存目录，返回该文件；失败返回 null。 */
+    private fun extractAsset(context: Context): File? = runCatching {
+        val out = File(context.cacheDir, ASSET_NAME)
+        context.assets.open(ASSET_NAME).use { input ->
+            out.outputStream().use { output -> input.copyTo(output) }
+        }
+        out.takeIf { it.length() > 0 }
+    }.getOrNull()
+
     /**
-     * 下载并刷入隐藏模块。整个过程在 root shell 里跑，日志逐行回调出来给界面显示。
+     * 解内置模块并刷入。整个过程在 root shell 里跑，日志逐行回调给界面。
      */
-    suspend fun install(onLog: (String) -> Unit): Result = withContext(Dispatchers.IO) {
+    suspend fun install(context: Context, onLog: (String) -> Unit): Result = withContext(Dispatchers.IO) {
         val sb = StringBuilder()
         fun emit(line: String) {
             sb.appendLine(line)
@@ -45,60 +42,39 @@ object HideEnvInstaller {
             onLog(line)
         }
 
-        if (isPlaceholder()) {
-            emit("[-] 隐藏模块地址还是占位值，请先在 HideEnvInstaller.MODULE_URL 里填入真实直链")
+        val asset = extractAsset(context)
+        if (asset == null) {
+            emit("[-] 内置隐藏模块解包失败（APK 里没有 assets/$ASSET_NAME 或写入缓存失败）")
             return@withContext Result(false, sb.toString())
         }
+        emit("[*] 内置模块已就绪：${asset.absolutePath}（${asset.length()} 字节）")
+        emit("[*] 开始刷入…")
 
-        emit("[*] 隐藏模块地址：$MODULE_URL")
-        emit("[*] 开始下载并刷入…")
-
-        // 只用 /system/bin/sh + 常见下载工具，避免依赖 App 侧的网络栈
+        // 1) 把模块拷到 /data/local/tmp（ksud 一定能读到）
+        // 2) 用绝对路径找 ksud（root shell 的 PATH 里没有它）
+        // 3) 只在真正返回 0 时才算成功
         val script = """
             set -e
             D=/data/local/tmp/papersu_hide
             rm -rf "${'$'}D"
             mkdir -p "${'$'}D"
-            cd "${'$'}D"
-            download() {
-                rm -f hide-module.zip
-                if command -v curl >/dev/null 2>&1; then
-                    curl -fL --retry 2 --connect-timeout 15 -o hide-module.zip "${'$'}1"
-                elif command -v wget >/dev/null 2>&1; then
-                    wget -T 20 -O hide-module.zip "${'$'}1"
-                elif command -v busybox >/dev/null 2>&1; then
-                    busybox wget -T 20 -O hide-module.zip "${'$'}1"
-                else
-                    return 2
-                fi
-            }
-            download '$MODULE_URL' || true
-            if [ ! -s hide-module.zip ]; then
-                echo "[-] 直链失败，改用镜像重试…"
-                download '$MODULE_URL_MIRROR' || true
-            fi
-            [ -s hide-module.zip ] || { echo "NODL"; exit 2; }
-            echo "SIZE=${'$'}(stat -c%s hide-module.zip 2>/dev/null || echo '?')"
+            cp "${asset.absolutePath}" "${'$'}D/hide-module.zip"
+            chmod 644 "${'$'}D/hide-module.zip"
+            echo "SIZE=${'$'}(stat -c%s "${'$'}D/hide-module.zip" 2>/dev/null || echo '?')"
             KSUD=""
             for c in /data/adb/ksu/bin/ksud /data/adb/ksud /system/bin/ksud /system/xbin/ksud; do
                 if [ -x "${'$'}c" ]; then KSUD="${'$'}c"; break; fi
             done
-            if [ -z "${'$'}KSUD" ]; then
-                KSUD=$(command -v ksud 2>/dev/null || true)
-            fi
+            if [ -z "${'$'}KSUD" ]; then KSUD=$(command -v ksud 2>/dev/null || true); fi
             if [ -z "${'$'}KSUD" ]; then
                 echo "NOKSUD"
-                echo "[-] 找不到 ksud（已找过 /data/adb/ksu/bin/ksud、/data/adb/ksud、PATH）"
                 exit 4
             fi
             echo "KSUD=${'$'}KSUD"
             "${'$'}KSUD" module install "${'$'}D/hide-module.zip"
             rc=${'$'}?
             echo "KSUD_RC=${'$'}rc"
-            if [ "${'$'}rc" -ne 0 ]; then
-                echo "INSTALL_FAILED"
-                exit 5
-            fi
+            if [ "${'$'}rc" -ne 0 ]; then echo "INSTALL_FAILED"; exit 5; fi
             echo "INSTALLED"
         """.trimIndent()
 
@@ -114,9 +90,11 @@ object HideEnvInstaller {
         result.err.forEach { emit("[stderr] $it") }
 
         val text = sb.toString()
-        val ok = text.contains("INSTALLED") && !text.contains("NODL") && !text.contains("EMPTY") && !text.contains("NOKSUD") && !text.contains("INSTALL_FAILED")
+        val ok = text.contains("INSTALLED") &&
+                !text.contains("NOKSUD") &&
+                !text.contains("INSTALL_FAILED")
         if (ok) emit("[+] 模块已刷入，请重启手机使隐藏环境生效")
-        else emit("[-] 未成功，请检查上面的日志（网络 / 地址 / ksud 是否可用）")
+        else emit("[-] 未成功，请检查上面的日志")
         Result(ok, sb.toString())
     }
 }

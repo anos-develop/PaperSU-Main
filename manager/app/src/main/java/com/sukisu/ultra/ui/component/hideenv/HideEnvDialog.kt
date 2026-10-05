@@ -68,7 +68,7 @@ fun HideEnvHost() {
                     HideEnvDialogState.busy = true
                     HideEnvDialogState.log = ""
                     scope.launch {
-                        val res = HideEnvInstaller.install { line ->
+                        val res = HideEnvInstaller.install(ctx) { line ->
                             HideEnvDialogState.log = HideEnvDialogState.log + line + "\n"
                         }
                         HideEnvDialogState.busy = false
