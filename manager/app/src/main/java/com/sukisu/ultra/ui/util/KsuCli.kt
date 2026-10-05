@@ -56,17 +56,17 @@ object KsuCli {
     // 内核 4.x 的机器上设备用的是 Magisk 的 su，这里会抛 IOException("Created process is
     // not a shell")，Kotlin 的 object 初始化异常会变成 ExceptionInInitializerError，
     // 把整个首页拖成白屏。改成 lazy + 兜底：拿不到 root shell 也不炸，后续命令自然失败。
-    val SHELL: Shell by lazy { createRootShellSafely() }
+    val SHELL: Shell by lazy { createRootShellSafely(false) }
 
-    private fun createRootShellSafely(): Shell =
-        runCatching { createRootShell() }.getOrElse { e ->
+    private fun createRootShellSafely(globalMnt: Boolean): Shell =
+        runCatching { createRootShell(globalMnt) }.getOrElse { e ->
             Log.w(TAG, "createRootShell failed, fall back to a plain shell", e)
             runCatching { Shell.Builder.create().build("sh") }.getOrElse { e2 ->
                 Log.e(TAG, "even a plain shell failed", e2)
                 throw e2
             }
         }
-    val GLOBAL_MNT_SHELL: Shell = createRootShell(true)
+    val GLOBAL_MNT_SHELL: Shell by lazy { createRootShellSafely(true) }
 }
 
 fun getRootShell(globalMnt: Boolean = false): Shell {

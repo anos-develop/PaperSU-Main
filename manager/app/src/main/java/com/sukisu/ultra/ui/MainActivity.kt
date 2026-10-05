@@ -127,6 +127,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import com.sukisu.ultra.ui.LocalUiMode
 import com.sukisu.ultra.ui.UiMode
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import com.sukisu.ultra.ui.component.engine.EngineMode
 
 
 // paperSU: 二级页面必须自己把上一页盖住。Nav3 会把上一页留在组合里。
@@ -164,15 +165,20 @@ class MainActivity : ComponentActivity() {
         val splashScreen = installSplashScreen()
         splashStartedAt = SystemClock.uptimeMillis()
         super.onCreate(savedInstanceState)
+        // paperSU: 内核 4.x 的机器走 Magisk 模式，KernelSU 的状态永远不会就绪。
+        // 原来这里无条件等 contentReady，而 contentReady 由内容里的 SideEffect 置位，
+        // 内容又起不来 —— 结果是启动画面永远挂着。Magisk 模式下只等那点动画时间。
+        val magiskMode = EngineMode.current(this) == EngineMode.Mode.Magisk
         splashScreen.setKeepOnScreenCondition {
-            !contentReady || SystemClock.uptimeMillis() - splashStartedAt < splashAnimationDurationMs
+            val animating = SystemClock.uptimeMillis() - splashStartedAt < splashAnimationDurationMs
+            if (magiskMode) animating else (!contentReady || animating)
         }
 
         // paperSU: apply hidden mode before anything reads Natives.isManager, otherwise a
         // first frame would render the root state and then flip to "not installed".
-        com.sukisu.ultra.ui.security.Stealth.applyMask()
+        runCatching { com.sukisu.ultra.ui.security.Stealth.applyMask() }
 
-        val isManager = Natives.isManager
+        val isManager = runCatching { Natives.isManager }.getOrDefault(false)
         if (isManager && Natives.kernelUAPIVersion == Natives.managerUAPIVersion) install()
 
         if (savedInstanceState == null) intent?.let { intentChannel.trySend(it) }
