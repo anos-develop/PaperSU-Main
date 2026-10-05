@@ -311,5 +311,5 @@ object MagiskPatcher {
 
     /** 清空 su 日志。 */
     fun clearSuLogs(): String = root("magisk --sqlite \"DELETE FROM logs\"")
-    }}
+}
 
