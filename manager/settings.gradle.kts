@@ -20,3 +20,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "KernelSU"
 include(":app")
+include(":shellapp")

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">纸SU 网页</string>
+    <string name="entering">正在进入网页管理端…</string>
+    <string name="not_authorized">这个应用没有获得授权。\n请先在 纸SU 管理器 → 设置 → 寄生 → 授权白名单 里加入：\ntop.becuy.eric.papersu.web</string>
+    <string name="webadmin_off">网页管理端没有开启。\n请先打开 纸SU 管理器 → 设置 → 寄生 → 点「开启」。</string>
+    <string name="open_manual">手动打开</string>
+    <string name="retry">重试</string>
+</resources>
