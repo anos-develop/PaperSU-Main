@@ -118,7 +118,6 @@ import top.yukonga.miuix.kmp.nav.core.NavDisplay
 import top.yukonga.miuix.kmp.nav.core.NavDisplayEffects
 import top.yukonga.miuix.kmp.nav.core.rememberNavSystemCornerRadius
 import top.yukonga.miuix.kmp.nav.transition.NavSwipeDirection
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.PagerGestureNestedScrollConnection
 import top.yukonga.miuix.kmp.utils.PagerInterceptionMode
 import top.yukonga.miuix.kmp.utils.PagerNavigationSpringSpec
@@ -127,14 +126,25 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import com.sukisu.ultra.ui.LocalUiMode
 import com.sukisu.ultra.ui.UiMode
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 
-// paperSU: 二级页面必须自己把上一页盖住。Nav3 会把上一页留在组合里；只画一层纯色底
-// 会把页面刷成白底（Material 色板与 Miuix 色板不同），所以这里改成画"和首页同一张壁纸"：
-// 壁纸是不透明图片，直接盖掉上一页；页面自身仍是半透明配色，观感与首页一致。
+// paperSU: 二级页面必须自己把上一页盖住。Nav3 会把上一页留在组合里。
+// 这里〔两层〕都有用，缺一不可：
+//   ① 不透明页面色 —— 保证任何情况下都不透底（壁纸关掉时就是它，不会变黑/变白）
+//   ② 上面再叠壁纸 —— 有壁纸时观感和首页一致，并且壁纸本身也盖住上一页
+// 曾经只留 ①（Material 色板在 Miuix 下取成白色 ✗）、后来只留 ②（壁纸关掉时一片黑 ✗），
+// 两次都是这样踩出来的。
 @Composable
 private fun OpaquePage(content: @Composable () -> Unit) {
-    WallpaperHost { content() }
+    val bg = if (LocalUiMode.current == UiMode.Miuix) {
+        MiuixTheme.colorScheme.background
+    } else {
+        MaterialTheme.colorScheme.background
+    }
+    Box(modifier = Modifier.fillMaxSize().background(bg)) {
+        WallpaperHost { content() }
+    }
 }
 
 class MainActivity : ComponentActivity() {
