@@ -21,6 +21,11 @@ import android.util.Log
 import com.topjohnwu.superuser.Shell
 import java.io.File
 
+/** DenyList 的一条记录（隐藏 root 名单）。 */
+data class DenyEntry(val uid: Int, val process: String)
+
+/** 一条 su 使用日志。 */
+data class SuLogEntry(val from: String, val action: String, val time: String)
 object MagiskPatcher {
 
     private const val TAG = "paperSU-magisk"
@@ -251,4 +256,60 @@ object MagiskPatcher {
         }
         return false to raw
     }
+    // -----------------------------------------------------------------------
+    // DenyList（隐藏 root 名单）与 Superuser 日志
+    //
+    // 两者都存在 magisk.db 里，直接读 SQLite 就行：
+    //   denylist(uid, process, ...)  —— 进程级隐藏名单
+    //   logs(...)                    —— su 的使用记录
+    // 也用 magisk --denylist 命令作为兜底（老版本 Magisk 只认这个）。
+    // -----------------------------------------------------------------------
+
+
+
+    /** 读 DenyList。 */
+    fun denyList(): List<DenyEntry> {
+        val out = root("magisk --sqlite \"SELECT uid,process FROM denylist\"")
+        val list = mutableListOf<DenyEntry>()
+        for (line in out.lineSequence()) {
+            val uid = Regex("uid=(\\d+)").find(line)?.groupValues?.get(1)?.toIntOrNull() ?: continue
+            val proc = Regex("process=([^|\\s]+)").find(line)?.groupValues?.get(1)?.trim().orEmpty()
+            list += DenyEntry(uid, proc)
+        }
+        return list
+    }
+
+    /** DenyList 总开关是否打开（Magisk 把它记在 settings 表里）。 */
+    fun denyEnabled(): Boolean {
+        val out = root("magisk --sqlite \"SELECT * FROM settings\"")
+        return out.contains("deny") || out.contains("zygisk")
+    }
+
+    fun denyEnable(enable: Boolean): String =
+        root("magisk --denylist ${if (enable) "enable" else "disable"} 2>&1")
+
+    /** 把一个包加进 / 移出 DenyList。 */
+    fun denySet(pkg: String, hide: Boolean): String =
+        root("magisk --denylist ${if (hide) "add" else "rm"} '$pkg' 2>&1")
+
+
+
+    /** 读最近若干条 su 日志。 */
+    fun suLogs(limit: Int = 30): List<SuLogEntry> {
+        val out = root("magisk --sqlite \"SELECT * FROM logs ORDER BY timestamp DESC LIMIT $limit\"")
+        val list = mutableListOf<SuLogEntry>()
+        for (line in out.lineSequence()) {
+            if (!line.contains("from_uid") && !line.contains("uid=")) continue
+            val from = Regex("(from_uid|uid)=(\\d+)").find(line)?.groupValues?.get(2).orEmpty()
+            val action = if (line.contains("action=1") || line.contains("policy=2")) "允许"
+                         else if (line.contains("action=0")) "拒绝" else "记录"
+            val time = Regex("timestamp=(\\d+)").find(line)?.groupValues?.get(1).orEmpty()
+            if (from.isNotEmpty()) list += SuLogEntry(from, action, time)
+        }
+        return list
+    }
+
+    /** 清空 su 日志。 */
+    fun clearSuLogs(): String = root("magisk --sqlite \"DELETE FROM logs\"")
     }}
+

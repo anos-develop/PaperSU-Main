@@ -721,4 +721,13 @@
     <string name="magisk_summary">4.x kernels: patch the boot image the Magisk way</string>
     <string name="magisk_intro">Dumps the current boot partition and patches it with the Magisk toolchain bundled in this APK, producing magisk_patched.img in /sdcard. Whether to flash it is your call.\n\nThe patching capability comes from Magisk (topjohnwu, GPL-3.0-or-later).</string>
     <string name="magisk_start">Start patching</string>
-    <string name="magisk_working">Patching…</string><string name="magisk_engine_hint">This device runs a 4.x kernel with no KernelSU, so the manager is in Magisk mode. The patched image lands in /sdcard and flashing it is your call; this app never flashes anything by itself.</string></resources>
+    <string name="magisk_working">Patching…</string><string name="magisk_engine_hint">This device runs a 4.x kernel with no KernelSU, so the manager is in Magisk mode. The patched image lands in /sdcard and flashing it is your call; this app never flashes anything by itself.</string>    <string name="magisk_deny_title">DenyList</string>
+    <string name="magisk_deny_hint">Apps on this list cannot see root. Read from Magisk\'s denylist table.</string>
+    <string name="magisk_deny_empty">(list is empty)</string>
+    <string name="magisk_deny_enable">Enable DenyList</string>
+    <string name="magisk_deny_disable">Disable DenyList</string>
+    <string name="magisk_log_title">Superuser log</string>
+    <string name="magisk_log_empty">(no entries)</string>
+    <string name="magisk_log_clear">Clear log</string>
+    <string name="magisk_gpl_title">Open source licence</string>
+    <string name="magisk_gpl_body">The boot patching capability in this app comes from Magisk by topjohnwu, licensed GPL-3.0-or-later. The full licence text ships inside the APK at assets/magisk/LICENSE-Magisk. This app is released under GPL-3.0-or-later as well.</string></resources>

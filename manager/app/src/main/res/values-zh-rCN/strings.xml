@@ -714,4 +714,13 @@
     <string name="magisk_summary">内核 4.x：照 Magisk 的方式修补 boot 镜像</string>
     <string name="magisk_intro">从当前系统提取 boot 分区，再用随 APK 打包的 Magisk 修补链生成 magisk_patched.img。产物会放在 /sdcard，刷不刷由你决定。\n\n修补能力来自 Magisk（topjohnwu，GPL-3.0-or-later）。</string>
     <string name="magisk_start">开始修补</string>
-    <string name="magisk_working">修补中…</string><string name="magisk_engine_hint">这台机器的内核是 4.x，没有 KernelSU，因此管理器走 Magisk 模式。修补产物会放在 /sdcard，刷不刷由你决定；本应用不会自动刷入任何东西。</string></resources>
+    <string name="magisk_working">修补中…</string><string name="magisk_engine_hint">这台机器的内核是 4.x，没有 KernelSU，因此管理器走 Magisk 模式。修补产物会放在 /sdcard，刷不刷由你决定；本应用不会自动刷入任何东西。</string>    <string name="magisk_deny_title">隐藏 root 名单（DenyList）</string>
+    <string name="magisk_deny_hint">名单里的应用看不到 root。来自 Magisk 的 denylist 表。</string>
+    <string name="magisk_deny_empty">（名单为空）</string>
+    <string name="magisk_deny_enable">启用 DenyList</string>
+    <string name="magisk_deny_disable">停用 DenyList</string>
+    <string name="magisk_log_title">Superuser 日志</string>
+    <string name="magisk_log_empty">（暂无记录）</string>
+    <string name="magisk_log_clear">清空日志</string>
+    <string name="magisk_gpl_title">开源许可</string>
+    <string name="magisk_gpl_body">本应用的 boot 修补能力来自 Magisk，作者 topjohnwu，许可证 GPL-3.0-or-later。完整许可证文本随 APK 打包在 assets/magisk/LICENSE-Magisk。本应用同样以 GPL-3.0-or-later 发布。</string></resources>
