@@ -97,8 +97,13 @@ obj-$(CONFIG_KSU) += kernelsu.o
 
 MDIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
-REPO_OWNER  := SukiSU-Ultra
-REPO_NAME   := SukiSU-Ultra
+# paperSU: the version formula below is 40000 + commitCount - 2815, and the manager
+# computes exactly the same thing from its own git history. Pointing this at the
+# upstream SukiSU repo made the two disagree by however many commits this fork has on
+# top of upstream, which showed up on device as two different version numbers. Counting
+# our own repository keeps them identical.
+REPO_OWNER  := anos-develop
+REPO_NAME   := PaperSU-Main
 REPO_BRANCH := main
 
 VERSION_BASE    := 40000
