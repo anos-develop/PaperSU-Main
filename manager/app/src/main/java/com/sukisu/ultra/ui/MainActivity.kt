@@ -138,9 +138,9 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Composable
 private fun OpaquePage(content: @Composable () -> Unit) {
     val bg = if (LocalUiMode.current == UiMode.Miuix) {
-        MiuixTheme.colorScheme.background
+        MiuixTheme.colorScheme.background.copy(alpha = 1f)
     } else {
-        MaterialTheme.colorScheme.background
+        MaterialTheme.colorScheme.background.copy(alpha = 1f)
     }
     Box(modifier = Modifier.fillMaxSize().background(bg)) {
         WallpaperHost { content() }
