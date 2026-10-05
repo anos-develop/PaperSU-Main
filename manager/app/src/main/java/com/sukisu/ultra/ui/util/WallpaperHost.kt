@@ -109,7 +109,12 @@ fun WallpaperHost(content: @Composable () -> Unit) {
     // ⚠️ v0.13.157:隐身时**照常画壁纸**(原来这里有个 `StealthLook.isPlain()` 的"素颜"判断,已撤)。
     //    壁纸不是 root 特征 —— 一个没 root 的用户点进来同样有他自己设的背景图,
     //    隐身只该改"显示什么内容",不该改"长什么样"。设置本来就没动,这里只是不再拦。
-    if (kind == "none") {
+    // paperSU: 总开关开着、但还没有生效的壁纸（kind == none，例如只用内置图，或选图没存住）
+    // 时【不能直接返回】。这时要继续往下走，让 resolveDrawn 回退到内置默认图；否则 WallpaperHost
+    // 一个像素都不画，主题又据此保持不透明，深色主题下整棵树合成到没有底上 → 全黑
+    // （卡片自带颜色所以看着正常，全屏搜索页就整片黑）。
+    val enabled = remember(rev, storeVer) { repo.wallpaperEnabled }
+    if (kind == "none" && !enabled) {
         content()
         return
     }
