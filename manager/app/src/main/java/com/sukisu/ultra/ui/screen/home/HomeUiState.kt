@@ -49,6 +49,14 @@ data class HomeUiState(
     val showKernelPrBuildWarning: Boolean
         get() = isManager && !isManagerPrBuild && isKernelPrBuild
 
+    // paperSU: 管理器与内核的版本号不一致时，必须红字提醒。
+    // 内嵌的 .ko 是编进 APK 的，APK 一更新、.ko 没跟着重建，两者就会差一截
+    // （例如 管理器 40968 / 内核 40955）。UAPI 一致所以 requiresNewKernel 不报，
+    // 但实际已经不是同一套代码了，必须让用户看得见。
+    val showVersionMismatchWarning: Boolean
+        get() = ksuVersion != null &&
+                currentManagerVersionCode > 0 &&
+                ksuVersion.toLong() != currentManagerVersionCode
     val hasUpdate: Boolean
         get() = latestVersionInfo.versionCode > currentManagerVersionCode
 }

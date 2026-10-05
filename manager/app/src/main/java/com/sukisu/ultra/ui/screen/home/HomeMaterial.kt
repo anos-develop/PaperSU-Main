@@ -101,6 +101,12 @@ fun HomePagerMaterial(
             }
             // paperSU: 内测提示横幅，放在首页最上方
             WarningCard(stringResource(id = R.string.home_papersu_beta_warning), level = WarningLevel.Notice)
+                if (state.showVersionMismatchWarning) {
+                    WarningCard(
+                        stringResource(id = R.string.home_version_mismatch_warning),
+                        level = WarningLevel.Error
+                    )
+                }
             if (state.showManagerPrBuildWarning && state.showFullStatus) {
                 WarningCard(stringResource(id = R.string.home_pr_build_warning), level = WarningLevel.Notice)
             } else if (state.showKernelPrBuildWarning && state.showFullStatus) {
