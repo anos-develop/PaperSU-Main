@@ -57,6 +57,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import com.sukisu.ultra.ui.util.WallpaperHost
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun SearchAppBar(
@@ -211,6 +212,9 @@ fun SearchAppBar(
     ExpandedFullScreenContainedSearchBar(
         state = searchBarState,
         inputField = inputField,
+        // paperSU: 展开态容器必须是透明的。它默认用深色 surfaceContainer*，
+        // 会把下面那层 WallpaperHost 画的壁纸整片盖住 → 全屏搜索页看着像黑屏。
+        colors = SearchBarDefaults.colors(containerColor = Color.Transparent),
         windowInsets = { SearchBarDefaults.fullScreenWindowInsets.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal) },
         content = {
             val bottomPadding = SearchBarDefaults.fullScreenWindowInsets.asPaddingValues().calculateBottomPadding()
