@@ -1,24 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- paperSU splash logo. Replaces the KernelSU logo vector: no plate at all:
-     just the paperSU "P" and its accent underline, on a transparent background. The
-     paths are named so animator targets can draw them on one stroke at a time. -->
-<!-- @color/ic_launcher_foreground 是 P，@color/ic_splash_accent 是横杠；
-     方板已移除，所以背景透明。 -->
+<!-- paperSU glyph: 只有字母 P 和它下面那道横杠，背景透明（关于页用）。
+     启动画面必须用带板的 ic_logo_papersu，否则那屏会是一片黑。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="500"
     android:viewportHeight="500">
     <group
-        android:name="splash_content"
+        android:name="glyph_content"
         android:pivotX="250"
         android:pivotY="250"
         android:scaleX="0.82"
         android:scaleY="0.82">
-
-        <path
-            android:fillColor="@color/ic_splash_background"
-            android:pathData="M135,25h230a110,110 0 0 1 110,110v230a110,110 0 0 1 -110,110h-230a110,110 0 0 1 -110,-110v-230a110,110 0 0 1 110,-110z" />
         <path
             android:name="papersu_p"
             android:fillColor="@android:color/transparent"
@@ -26,15 +19,13 @@
             android:strokeWidth="38"
             android:strokeColor="@color/ic_launcher_foreground"
             android:strokeLineCap="round"
-            android:strokeLineJoin="round"
-            android:trimPathEnd="1" />
+            android:strokeLineJoin="round" />
         <path
             android:name="papersu_underline"
             android:fillColor="@android:color/transparent"
             android:pathData="M172,412 H328"
             android:strokeWidth="20"
             android:strokeColor="@color/ic_splash_accent"
-            android:strokeLineCap="round"
-            android:trimPathEnd="1" />
+            android:strokeLineCap="round" />
     </group>
 </vector>

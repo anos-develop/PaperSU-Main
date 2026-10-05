@@ -79,7 +79,7 @@ fun AboutScreenMaterial(
                             .background(Color.White)
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.ic_logo_papersu),
+                            painter = painterResource(id = R.drawable.ic_logo_papersu_glyph),
                             contentDescription = null,
                             contentScale = FixedScale(1f)
                         )

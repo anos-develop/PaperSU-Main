@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
+import com.sukisu.ultra.ui.util.WallpaperHost
 
 @Composable
 fun SearchAppBar(
@@ -214,6 +215,9 @@ fun SearchAppBar(
         content = {
             val bottomPadding = SearchBarDefaults.fullScreenWindowInsets.asPaddingValues().calculateBottomPadding()
             Box(modifier = Modifier.fillMaxSize()) {
+                // paperSU: 展开态搜索是独立窗口(Popup)，拿不到根部的壁纸层，
+                // 所以这里自己画一层壁纸；空内容 = 只画壁纸，不影响子元素。
+                WallpaperHost { }
                 if (currentQuery.isNotEmpty()) {
                     searchContent(bottomPadding, collapseAndClear)
                 } else {
