@@ -721,4 +721,4 @@
     <string name="magisk_summary">4.x kernels: patch the boot image the Magisk way</string>
     <string name="magisk_intro">Dumps the current boot partition and patches it with the Magisk toolchain bundled in this APK, producing magisk_patched.img in /sdcard. Whether to flash it is your call.\n\nThe patching capability comes from Magisk (topjohnwu, GPL-3.0-or-later).</string>
     <string name="magisk_start">Start patching</string>
-    <string name="magisk_working">Patching…</string></resources>
+    <string name="magisk_working">Patching…</string><string name="magisk_engine_hint">This device runs a 4.x kernel with no KernelSU, so the manager is in Magisk mode. The patched image lands in /sdcard and flashing it is your call; this app never flashes anything by itself.</string></resources>

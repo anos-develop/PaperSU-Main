@@ -113,6 +113,13 @@ fun WallpaperHost(content: @Composable () -> Unit) {
     // 时【不能直接返回】。这时要继续往下走，让 resolveDrawn 回退到内置默认图；否则 WallpaperHost
     // 一个像素都不画，主题又据此保持不透明，深色主题下整棵树合成到没有底上 → 全黑
     // （卡片自带颜色所以看着正常，全屏搜索页就整片黑）。
+    // paperSU: 内核 4.x 的机器走 Magisk 模式。壁纸这层在 Android 11 上出过问题，
+    // 一旦它在组合期抛异常，整个 navDisplay() 就不会组合 —— 屏幕全白。
+    // Magisk 模式下直接透传，不做任何壁纸处理。
+    val isMagiskMode = com.sukisu.ultra.ui.component.engine.EngineMode.current(
+        androidx.compose.ui.platform.LocalContext.current
+    ) == com.sukisu.ultra.ui.component.engine.EngineMode.Mode.Magisk
+    if (isMagiskMode) { content(); return }
     val enabled = remember(rev, storeVer) { repo.wallpaperEnabled }
     if (kind == "none" && !enabled) {
         content()

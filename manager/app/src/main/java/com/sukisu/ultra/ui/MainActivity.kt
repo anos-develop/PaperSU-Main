@@ -196,6 +196,12 @@ class MainActivity : ComponentActivity() {
         }.start()
 
         setContent {
+            // paperSU: 两套界面在这里分流。Magisk 模式（内核 4.x，没有 KernelSU）走自己的
+            // 极简主页；那套以 ksud 为中心的界面在这类机器上根本组合不出来，硬上只会白屏。
+            if (magiskMode) {
+                com.sukisu.ultra.ui.component.magisk.MagiskModeRoot()
+                return@setContent
+            }
             val viewModel = viewModel<MainActivityViewModel>()
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
             val selectedMainPage by viewModel.selectedMainPage.collectAsStateWithLifecycle()

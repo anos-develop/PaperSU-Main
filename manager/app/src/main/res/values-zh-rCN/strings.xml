@@ -714,4 +714,4 @@
     <string name="magisk_summary">内核 4.x：照 Magisk 的方式修补 boot 镜像</string>
     <string name="magisk_intro">从当前系统提取 boot 分区，再用随 APK 打包的 Magisk 修补链生成 magisk_patched.img。产物会放在 /sdcard，刷不刷由你决定。\n\n修补能力来自 Magisk（topjohnwu，GPL-3.0-or-later）。</string>
     <string name="magisk_start">开始修补</string>
-    <string name="magisk_working">修补中…</string></resources>
+    <string name="magisk_working">修补中…</string><string name="magisk_engine_hint">这台机器的内核是 4.x，没有 KernelSU，因此管理器走 Magisk 模式。修补产物会放在 /sdcard，刷不刷由你决定；本应用不会自动刷入任何东西。</string></resources>
