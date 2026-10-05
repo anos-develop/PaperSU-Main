@@ -81,8 +81,6 @@ data class MagiskUiState(
     val magiskInstalled: Boolean = false,
     val apps: List<AppEntry> = emptyList(),
     val modules: List<MagiskModule> = emptyList(),
-    val denyList: List<DenyEntry> = emptyList(),
-    val logs: List<SuLogEntry> = emptyList(),
     val loading: Boolean = true,
 )
 
@@ -120,8 +118,6 @@ private suspend fun loadState(ctx: Context): MagiskUiState = withContext(Dispatc
         }
     }
     MagiskUiState(
-        denyList = if (root) runCatching { MagiskPatcher.denyList() }.getOrDefault(emptyList()) else emptyList(),
-        logs = if (root) runCatching { MagiskPatcher.suLogs() }.getOrDefault(emptyList()) else emptyList(),
         kernel = EngineMode.kernelRelease(),
         root = root,
         magiskVersion = ver,
@@ -287,56 +283,6 @@ private fun SuperUserPage(ctx: Context, state: MagiskUiState, toast: String, onR
         Text("超级用户", style = MaterialTheme.typography.headlineSmall)
         Text("下面是你手机上所有有启动图标的应用。打开开关就是给它 root（写进 magisk 的授权表）。",
             style = MaterialTheme.typography.bodySmall)
-
-        // ------------------- DenyList（隐藏 root 名单）-------------------
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text(stringResource(R.string.magisk_deny_title), style = MaterialTheme.typography.titleMedium)
-                Text(stringResource(R.string.magisk_deny_hint),
-                    style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
-                if (state.denyList.isEmpty()) {
-                    Text(stringResource(R.string.magisk_deny_empty),
-                        style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
-                } else {
-                    for (d in state.denyList) {
-                        Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("${d.process.ifBlank { "uid" }}  uid=${d.uid}",
-                                style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                            TextButton(onClick = {
-                                Thread { MagiskPatcher.denySet(d.process, false); Thread.sleep(250); onReload() }.start()
-                            }) { Text("移出") }
-                        }
-                    }
-                }
-                Row(Modifier.padding(top = 4.dp)) {
-                    TextButton(onClick = {
-                        Thread { MagiskPatcher.denyEnable(true); Thread.sleep(250); onReload() }.start()
-                    }) { Text(stringResource(R.string.magisk_deny_enable)) }
-                    TextButton(onClick = {
-                        Thread { MagiskPatcher.denyEnable(false); Thread.sleep(250); onReload() }.start()
-                    }) { Text(stringResource(R.string.magisk_deny_disable)) }
-                }
-            }
-        }
-
-        // ------------------- Superuser 日志 -------------------
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text(stringResource(R.string.magisk_log_title), style = MaterialTheme.typography.titleMedium)
-                if (state.logs.isEmpty()) {
-                    Text(stringResource(R.string.magisk_log_empty),
-                        style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
-                } else {
-                    for (lg in state.logs) {
-                        Text("uid=${lg.from}   ${lg.action}",
-                            style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 2.dp))
-                    }
-                }
-                TextButton(onClick = {
-                    Thread { MagiskPatcher.clearSuLogs(); Thread.sleep(250); onReload() }.start()
-                }) { Text(stringResource(R.string.magisk_log_clear)) }
-            }
-        }
         if (toast.isNotEmpty()) Text(toast, style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary)
 
@@ -514,14 +460,6 @@ private fun SettingsPage(state: MagiskUiState, toast: String, onReload: () -> Un
                     "切换后应用会自动重启并加载对应界面。",
                     style = MaterialTheme.typography.bodySmall
                 )
-            }
-        }
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text(stringResource(R.string.magisk_gpl_title), style = MaterialTheme.typography.titleMedium)
-                Text(stringResource(R.string.magisk_gpl_body),
-                    style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
             }
         }
 
