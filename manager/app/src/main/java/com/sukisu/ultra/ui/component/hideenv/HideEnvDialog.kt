@@ -68,14 +68,15 @@ fun HideEnvHost() {
                     HideEnvDialogState.busy = true
                     HideEnvDialogState.log = ""
                     scope.launch {
-                        val res = HideEnvInstaller.install(ctx) { line ->
+                        // 只把内置模块交给管理器自己的安装界面，后续选择由用户操作
+                        val res = HideEnvInstaller.launch(ctx) { line ->
                             HideEnvDialogState.log = HideEnvDialogState.log + line + "\n"
                         }
                         HideEnvDialogState.busy = false
                         HideEnvDialogState.show = false
                         Toast.makeText(
                             ctx,
-                            ctx.getString(if (res.ok) R.string.hide_env_done else R.string.hide_env_failed),
+                            ctx.getString(if (res.ok) R.string.hide_env_opened else R.string.hide_env_failed),
                             Toast.LENGTH_LONG
                         ).show()
                     }

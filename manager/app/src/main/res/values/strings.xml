@@ -694,4 +694,5 @@
     <string name="hide_env_confirm_cancel">Cancel</string>
     <string name="hide_env_running">Downloading and flashing the hidden module…</string>
     <string name="hide_env_done">Module flashed. Please reboot.</string>
-    <string name="hide_env_failed">Flash failed, check the log.</string></resources>
+    <string name="hide_env_failed">Flash failed, check the log.</string>    <string name="hide_env_opened">Install UI opened. Follow the prompts to confirm.</string>
+</resources>
