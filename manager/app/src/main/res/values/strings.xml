@@ -695,4 +695,7 @@
     <string name="hide_env_running">Downloading and flashing the hidden module…</string>
     <string name="hide_env_done">Module flashed. Please reboot.</string>
     <string name="hide_env_failed">Flash failed, check the log.</string>    <string name="hide_env_opened">Install UI opened. Follow the prompts to confirm.</string>
-</resources>
+    <string name="gki_kernel_info">Kernel information</string>
+    <string name="gki_kernel_unknown">Kernel version not detected</string>
+    <string name="gki_reflash_kernel">Reflash kernel</string>
+    <string name="gki_reflash_kernel_summary">Run the kernel installation flow again (built-in mode)</string></resources>

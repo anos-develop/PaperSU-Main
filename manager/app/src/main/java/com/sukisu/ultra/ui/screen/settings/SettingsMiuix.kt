@@ -89,6 +89,8 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import com.sukisu.ultra.ui.component.hideenv.HideEnvHost
 import com.sukisu.ultra.ui.component.hideenv.HideEnvDialogState
+import com.sukisu.ultra.ui.screen.settings.GkiKernelInfoItem
+import com.sukisu.ultra.ui.screen.settings.GkiReflashKernelItem
 
 /**
  * @author weishu
@@ -135,6 +137,18 @@ fun SettingPagerMiuix(
                 contentPadding = innerPadding,
                 overscrollEffect = null,
             ) {
+                // paperSU: 内置内核模式专有的两项（LKM 模式不显示）
+                item {
+                    Card(
+                        modifier = Modifier
+                            .padding(top = 12.dp)
+                            .fillMaxWidth(),
+                    ) {
+                        if (!uiState.isLkmMode) { GkiKernelInfoItem() }
+                        if (!uiState.isLkmMode) { GkiReflashKernelItem() }
+                    }
+                }
+
                 item {
                     Card(
                         modifier = Modifier

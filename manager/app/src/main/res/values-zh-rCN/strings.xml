@@ -688,4 +688,7 @@
     <string name="hide_env_running">正在下载并刷入隐藏模块…</string>
     <string name="hide_env_done">隐藏模块已刷入，请重启手机</string>
     <string name="hide_env_failed">刷入失败，请查看日志</string>    <string name="hide_env_opened">已打开安装界面，请按提示确认安装</string>
-</resources>
+    <string name="gki_kernel_info">内核信息</string>
+    <string name="gki_kernel_unknown">未检测到内核版本</string>
+    <string name="gki_reflash_kernel">重新刷入内核</string>
+    <string name="gki_reflash_kernel_summary">重新执行一次内核安装流程（内置模式）</string></resources>

@@ -85,6 +85,8 @@ import com.sukisu.ultra.ui.util.LocaleHelper
 import com.sukisu.ultra.ui.component.uninstalldialog.UninstallDialog
 import com.sukisu.ultra.ui.component.hideenv.HideEnvHost
 import com.sukisu.ultra.ui.component.hideenv.HideEnvDialogState
+import com.sukisu.ultra.ui.screen.settings.GkiKernelInfoItem
+import com.sukisu.ultra.ui.screen.settings.GkiReflashKernelItem
 
 /**
  * @author weishu
@@ -128,6 +130,13 @@ fun SettingPagerMaterial(
                 SegmentedColumn(
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 13.dp),
                     content = listOf(
+                        // paperSU: 内置内核模式专有的两项（LKM 模式不显示）
+                        {
+                            if (!uiState.isLkmMode) { GkiKernelInfoItem() }
+                        },
+                        {
+                            if (!uiState.isLkmMode) { GkiReflashKernelItem() }
+                        },
                         {
                             SegmentedSwitchItem(
                                 icon = Icons.Filled.SystemUpdate,
