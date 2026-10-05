@@ -717,4 +717,8 @@
     <string name="parasite_authority_hint">Authorizer authority: %1$s\nCall it from your app with ContentResolver.call(); methods: isAllowed / getWebAdminUrl / getStatus.</string>    <string name="engine_title">Engine mode</string>
     <string name="engine_summary_ksu">talks to ksud (GKI / LKM)</string>
     <string name="engine_summary_magisk">Magisk mode (boot image patching)</string>
-    <string name="engine_override_hint">Use the buttons below to pin a mode by hand; to go back to automatic detection, clear the app data.</string></resources>
+    <string name="engine_override_hint">Use the buttons below to pin a mode by hand; to go back to automatic detection, clear the app data.</string>    <string name="magisk_title">Magisk patching</string>
+    <string name="magisk_summary">4.x kernels: patch the boot image the Magisk way</string>
+    <string name="magisk_intro">Dumps the current boot partition and patches it with the Magisk toolchain bundled in this APK, producing magisk_patched.img in /sdcard. Whether to flash it is your call.\n\nThe patching capability comes from Magisk (topjohnwu, GPL-3.0-or-later).</string>
+    <string name="magisk_start">Start patching</string>
+    <string name="magisk_working">Patching…</string></resources>

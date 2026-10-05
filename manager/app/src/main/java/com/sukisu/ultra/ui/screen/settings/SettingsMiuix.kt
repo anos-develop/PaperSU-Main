@@ -93,6 +93,7 @@ import com.sukisu.ultra.ui.screen.settings.GkiKernelInfoItem
 import com.sukisu.ultra.ui.screen.settings.GkiReflashKernelItem
 import com.sukisu.ultra.ui.component.parasite.ParasiteHost
 import com.sukisu.ultra.ui.component.engine.EngineHost
+import com.sukisu.ultra.ui.component.magisk.MagiskHost
 
 /**
  * @author weishu
@@ -141,6 +142,16 @@ fun SettingPagerMiuix(
             ) {
                 // paperSU: 内置内核模式专有的两项（LKM 模式不显示）
                 // paperSU: 寄生 —— 网页管理端常驻（ksud 提供），删掉管理器也能用
+                item {
+                    Card(
+                        modifier = Modifier
+                            .padding(top = 12.dp)
+                            .fillMaxWidth(),
+                    ) {
+                        com.sukisu.ultra.ui.component.magisk.MagiskRow()
+                    }
+                }
+
                 item {
                     Card(
                         modifier = Modifier
@@ -832,6 +843,7 @@ fun SettingPagerMiuix(
 
                             // paperSU: 寄生 —— 网页管理端常驻（ksud 提供），删掉管理器也能用
                             ParasiteHost()
+                            MagiskHost()
                         }
                     }
 

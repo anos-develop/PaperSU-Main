@@ -89,6 +89,7 @@ import com.sukisu.ultra.ui.screen.settings.GkiKernelInfoItem
 import com.sukisu.ultra.ui.screen.settings.GkiReflashKernelItem
 import com.sukisu.ultra.ui.component.parasite.ParasiteHost
 import com.sukisu.ultra.ui.component.engine.EngineHost
+import com.sukisu.ultra.ui.component.magisk.MagiskHost
 
 /**
  * @author weishu
@@ -118,6 +119,7 @@ fun SettingPagerMaterial(
 
     // paperSU: 寄生 —— 网页管理端常驻（ksud 提供），删掉管理器也能用
     ParasiteHost()
+    MagiskHost()
 
     ExpressiveScaffold(
         topBar = {
@@ -136,6 +138,9 @@ fun SettingPagerMaterial(
                 SegmentedColumn(
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 13.dp),
                     content = listOf(
+                        {
+                            com.sukisu.ultra.ui.component.magisk.MagiskRow()
+                        },
                         {
                             com.sukisu.ultra.ui.component.engine.EngineRow()
                         },

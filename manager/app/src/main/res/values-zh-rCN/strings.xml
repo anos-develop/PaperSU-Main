@@ -710,4 +710,8 @@
     <string name="parasite_authority_hint">授权接口 authority：%1$s\n你的应用用 ContentResolver.call() 调用，支持 isAllowed / getWebAdminUrl / getStatus。</string>    <string name="engine_title">运行模式</string>
     <string name="engine_summary_ksu">调 ksud（GKI / LKM）</string>
     <string name="engine_summary_magisk">Magisk 模式（boot 修补）</string>
-    <string name="engine_override_hint">下面两个按钮可手动指定；点任意一个即固定，想恢复自动判定请重装应用数据。</string></resources>
+    <string name="engine_override_hint">下面两个按钮可手动指定；点任意一个即固定，想恢复自动判定请重装应用数据。</string>    <string name="magisk_title">Magisk 修补</string>
+    <string name="magisk_summary">内核 4.x：照 Magisk 的方式修补 boot 镜像</string>
+    <string name="magisk_intro">从当前系统提取 boot 分区，再用随 APK 打包的 Magisk 修补链生成 magisk_patched.img。产物会放在 /sdcard，刷不刷由你决定。\n\n修补能力来自 Magisk（topjohnwu，GPL-3.0-or-later）。</string>
+    <string name="magisk_start">开始修补</string>
+    <string name="magisk_working">修补中…</string></resources>
