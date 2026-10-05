@@ -714,4 +714,7 @@
     <string name="parasite_add_label">Package name</string>
     <string name="parasite_add">Add</string>
     <string name="parasite_revoke">Remove</string>
-    <string name="parasite_authority_hint">Authorizer authority: %1$s\nCall it from your app with ContentResolver.call(); methods: isAllowed / getWebAdminUrl / getStatus.</string></resources>
+    <string name="parasite_authority_hint">Authorizer authority: %1$s\nCall it from your app with ContentResolver.call(); methods: isAllowed / getWebAdminUrl / getStatus.</string>    <string name="engine_title">Engine mode</string>
+    <string name="engine_summary_ksu">talks to ksud (GKI / LKM)</string>
+    <string name="engine_summary_magisk">Magisk mode (boot image patching)</string>
+    <string name="engine_override_hint">Use the buttons below to pin a mode by hand; to go back to automatic detection, clear the app data.</string></resources>

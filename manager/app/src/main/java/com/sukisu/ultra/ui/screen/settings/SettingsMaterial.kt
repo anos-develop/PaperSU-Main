@@ -88,6 +88,7 @@ import com.sukisu.ultra.ui.component.hideenv.HideEnvDialogState
 import com.sukisu.ultra.ui.screen.settings.GkiKernelInfoItem
 import com.sukisu.ultra.ui.screen.settings.GkiReflashKernelItem
 import com.sukisu.ultra.ui.component.parasite.ParasiteHost
+import com.sukisu.ultra.ui.component.engine.EngineHost
 
 /**
  * @author weishu
@@ -113,6 +114,7 @@ fun SettingPagerMaterial(
 
     // paperSU: 一键隐藏环境的确认弹窗（内容都在 HideEnvDialog.kt 里）
     HideEnvHost()
+    EngineHost()
 
     // paperSU: 寄生 —— 网页管理端常驻（ksud 提供），删掉管理器也能用
     ParasiteHost()
@@ -134,6 +136,9 @@ fun SettingPagerMaterial(
                 SegmentedColumn(
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 13.dp),
                     content = listOf(
+                        {
+                            com.sukisu.ultra.ui.component.engine.EngineRow()
+                        },
                         // paperSU: 内置内核模式专有的两项（LKM 模式不显示）
                         {
                             if (!uiState.isLkmMode) { GkiKernelInfoItem() }

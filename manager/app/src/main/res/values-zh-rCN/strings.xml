@@ -707,4 +707,7 @@
     <string name="parasite_add_label">包名</string>
     <string name="parasite_add">添加</string>
     <string name="parasite_revoke">移除</string>
-    <string name="parasite_authority_hint">授权接口 authority：%1$s\n你的应用用 ContentResolver.call() 调用，支持 isAllowed / getWebAdminUrl / getStatus。</string></resources>
+    <string name="parasite_authority_hint">授权接口 authority：%1$s\n你的应用用 ContentResolver.call() 调用，支持 isAllowed / getWebAdminUrl / getStatus。</string>    <string name="engine_title">运行模式</string>
+    <string name="engine_summary_ksu">调 ksud（GKI / LKM）</string>
+    <string name="engine_summary_magisk">Magisk 模式（boot 修补）</string>
+    <string name="engine_override_hint">下面两个按钮可手动指定；点任意一个即固定，想恢复自动判定请重装应用数据。</string></resources>
