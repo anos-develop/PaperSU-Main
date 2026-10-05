@@ -138,13 +138,16 @@ fun SettingPagerMaterial(
                             )
                         },
                         {
-                            SegmentedSwitchItem(
-                                icon = Icons.Filled.SystemUpdateAlt,
-                                title = stringResource(id = R.string.settings_module_check_update),
-                                summary = stringResource(id = R.string.settings_check_update_summary),
-                                checked = uiState.checkModuleUpdate,
-                                onCheckedChange = actions.onSetCheckModuleUpdate
-                            )
+                            // paperSU: 模块检查更新（LKM 才需要） —— 按运行模式显示
+                            if (uiState.isLkmMode) {
+                                SegmentedSwitchItem(
+                                    icon = Icons.Filled.SystemUpdateAlt,
+                                    title = stringResource(id = R.string.settings_module_check_update),
+                                    summary = stringResource(id = R.string.settings_check_update_summary),
+                                    checked = uiState.checkModuleUpdate,
+                                    onCheckedChange = actions.onSetCheckModuleUpdate
+                                )
+                            }
                         },
                         {
                             // paperSU: 一键隐藏环境（移植自月虹隐藏模块）
@@ -152,11 +155,14 @@ fun SettingPagerMaterial(
                             var hideEnvOn by remember { mutableStateOf(Stealth.isEnabled()) }
                             // paperSU: 这是一个"按钮"而不是开关 —— 点它弹出确认窗，再下载并刷入
                             // paperSU: 这是一个"按钮"而不是开关 —— 点它弹出确认窗，再下载并刷入
-                            SegmentedListItem(
-                                onClick = { HideEnvDialogState.open() },
-                                headlineContent = { Text(stringResource(id = R.string.settings_hide_env_title)) },
-                                supportingContent = { Text(stringResource(id = R.string.settings_hide_env_summary)) }
-                            )
+                            // paperSU: 一键隐藏环境（LKM 才有意义） —— 按运行模式显示
+                            if (uiState.isLkmMode) {
+                                SegmentedListItem(
+                                    onClick = { HideEnvDialogState.open() },
+                                    headlineContent = { Text(stringResource(id = R.string.settings_hide_env_title)) },
+                                    supportingContent = { Text(stringResource(id = R.string.settings_hide_env_summary)) }
+                                )
+                            }
                         }
                     )
                 )

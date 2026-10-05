@@ -156,37 +156,43 @@ fun SettingPagerMiuix(
                             onCheckedChange = actions.onSetCheckUpdate
                         )
                         KsuIsValid {
-                            SwitchPreference(
-                                title = stringResource(id = R.string.settings_module_check_update),
-                                summary = stringResource(id = R.string.settings_check_update_summary),
-                                startAction = {
-                                    Icon(
-                                        Icons.Rounded.SystemUpdateAlt,
-                                        modifier = Modifier.padding(end = 6.dp),
-                                        contentDescription = stringResource(id = R.string.settings_check_update),
-                                        tint = colorScheme.onBackground
-                                    )
-                                },
-                                checked = uiState.checkModuleUpdate,
-                                onCheckedChange = actions.onSetCheckModuleUpdate
-                            )
+                            // paperSU: 模块检查更新（LKM 才需要） —— 按运行模式显示
+                            if (uiState.isLkmMode) {
+                                SwitchPreference(
+                                    title = stringResource(id = R.string.settings_module_check_update),
+                                    summary = stringResource(id = R.string.settings_check_update_summary),
+                                    startAction = {
+                                        Icon(
+                                            Icons.Rounded.SystemUpdateAlt,
+                                            modifier = Modifier.padding(end = 6.dp),
+                                            contentDescription = stringResource(id = R.string.settings_check_update),
+                                            tint = colorScheme.onBackground
+                                        )
+                                    },
+                                    checked = uiState.checkModuleUpdate,
+                                    onCheckedChange = actions.onSetCheckModuleUpdate
+                                )
+                            }
                             // paperSU: 一键隐藏环境（移植自月虹隐藏模块）
                             val hideEnvContext2 = LocalContext.current
                             var hideEnvOn2 by remember { mutableStateOf(Stealth.isEnabled()) }
                             // paperSU: 这是一个"按钮"而不是开关 —— 点它弹出确认窗，再下载并刷入
-                            ArrowPreference(
-                                title = stringResource(id = R.string.settings_hide_env_title),
-                                summary = stringResource(id = R.string.settings_hide_env_summary),
-                                onClick = { HideEnvDialogState.open() },
-                                startAction = {
-                                    Icon(
-                                        Icons.Rounded.VisibilityOff,
-                                        modifier = Modifier.padding(end = 6.dp),
-                                        contentDescription = stringResource(id = R.string.settings_hide_env_title),
-                                        tint = colorScheme.onBackground
-                                    )
-                                }
-                            )
+                            // paperSU: 一键隐藏环境（LKM 才有意义） —— 按运行模式显示
+                            if (uiState.isLkmMode) {
+                                ArrowPreference(
+                                    title = stringResource(id = R.string.settings_hide_env_title),
+                                    summary = stringResource(id = R.string.settings_hide_env_summary),
+                                    onClick = { HideEnvDialogState.open() },
+                                    startAction = {
+                                        Icon(
+                                            Icons.Rounded.VisibilityOff,
+                                            modifier = Modifier.padding(end = 6.dp),
+                                            contentDescription = stringResource(id = R.string.settings_hide_env_title),
+                                            tint = colorScheme.onBackground
+                                        )
+                                    }
+                                )
+                            }
                         }
                     }
 
