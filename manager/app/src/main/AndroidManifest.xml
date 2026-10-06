@@ -10,6 +10,17 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" android:minSdkVersion="34"/>
 
     <uses-sdk tools:overrideLibrary="top.yukonga.miuix.kmp.blur" />
+    <!-- paperSU: Android 11+ 的包可见性。没有这一段，queryIntentActivities 只返回自己和
+         manifest 里显式声明过的包，超级用户页的应用列表就会缺一大半（一加上就是这样）。 -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+        </intent>
+    </queries>
 
     <application
         android:name=".KernelSUApplication"
