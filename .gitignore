@@ -25,3 +25,8 @@ __pycache__
 # card-key signing material must never be committed
 tools/license/keys/
 *.pem
+
+# PyInstaller output
+tools/license/dist/
+tools/license/build/
+*.spec

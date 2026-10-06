@@ -11,6 +11,7 @@ import argparse
 import base64
 import json
 import os
+import secrets
 import subprocess
 import sys
 
@@ -49,7 +50,8 @@ def main():
         sys.exit("no private key at %s - run genkey.py first" % priv)
 
     payload = json.dumps(
-        {"u": args.user, "t": args.tier, "exp": args.exp},
+        # n 让同一用户/同一天签两次也得到不同的卡密，重复无从发生
+        {"u": args.user, "t": args.tier, "exp": args.exp, "n": secrets.token_hex(4)},
         separators=(",", ":"),
         ensure_ascii=False,
     ).encode("utf-8")
