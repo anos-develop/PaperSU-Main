@@ -40,10 +40,31 @@ object LicenseManager {
         val expiry: String,
         val cardKey: String,
     ) {
-        val isPro: Boolean
-            get() = tier.equals("pro", true) ||
-                tier.equals("vip", true) ||
-                tier.equals("premium", true)
+        /**
+         * 授权等级。
+         *   0  没有授权 / 未知等级
+         *   1  pro   —— 解锁 Magisk 模式
+         *   2  vip   —— 解锁全部高级功能（含 pro 的一切）
+         */
+        val level: Int
+            get() = when (tier.lowercase(java.util.Locale.US)) {
+                "vip", "premium" -> 2
+                "pro" -> 1
+                else -> 0
+            }
+
+        /** 至少 pro：Magisk 模式的门槛。 */
+        val isPro: Boolean get() = level >= 1
+
+        /** vip：全部高级功能。 */
+        val isVip: Boolean get() = level >= 2
+
+        val tierLabel: String
+            get() = when (level) {
+                2 -> "VIP（全部功能）"
+                1 -> "Pro（Magisk 模式）"
+                else -> "未授权"
+            }
     }
 
     sealed interface Outcome {

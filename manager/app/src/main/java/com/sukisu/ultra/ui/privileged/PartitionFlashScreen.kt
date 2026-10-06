@@ -104,7 +104,7 @@ fun PartitionFlashScreen() {
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
-            pro = LicenseManager.current(context)?.isPro == true
+            pro = LicenseManager.current(context)?.isVip == true
         }
     }
 
@@ -134,7 +134,7 @@ fun PartitionFlashScreen() {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
             ) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("VIP 功能", style = MaterialTheme.typography.titleMedium)
+                    Text("VIP 功能（需要 VIP 授权）", style = MaterialTheme.typography.titleMedium)
                     Text(
                         "分区刷写需要 VIP 授权。到「我的」页粘贴卡密激活后即可使用。",
                         style = MaterialTheme.typography.bodySmall,

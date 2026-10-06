@@ -10,6 +10,7 @@ package com.sukisu.ultra.ui.component.engine
 
 import android.content.Context
 import com.sukisu.ultra.ksuApp
+import com.sukisu.ultra.ui.license.LicenseManager
 
 object EngineMode {
 
@@ -55,8 +56,26 @@ object EngineMode {
         }.apply()
     }
 
-    /** 最终生效的模式：手动覆盖优先，否则自动判定。 */
-    fun current(ctx: Context = ksuApp): Mode = override(ctx) ?: detect()
+    /**
+     * Magisk 模式是 Pro 功能。
+     *
+     * 没授权时这里返回 false，current() 就会退回 KernelSU —— 于是界面、模式切换、
+     * 各处判断全都不需要单独改，一处生效。
+     */
+    fun magiskAllowed(ctx: Context = ksuApp): Boolean =
+        runCatching { LicenseManager.current(ctx)?.isPro == true }.getOrDefault(false)
+
+    /**
+     * 最终生效的模式：手动覆盖优先，否则自动判定。
+     *
+     * 但 Magisk 需要 Pro：没授权就退回 KernelSU，哪怕内核是 4.x。
+     * 用户在界面上会看到「Magisk 模式需要 Pro 授权」的说明，而不是一套用不了的界面。
+     */
+    fun current(ctx: Context = ksuApp): Mode {
+        val wanted = override(ctx) ?: detect()
+        if (wanted == Mode.Magisk && !magiskAllowed(ctx)) return Mode.KernelSU
+        return wanted
+    }
 
     /** 给界面用的一句话说明。 */
     fun explain(ctx: Context = ksuApp): String {
@@ -71,6 +90,12 @@ object EngineMode {
             major >= 5 -> "内核主版本 $major >= 5，调 ksud"
             else -> "读不到内核版本，保守按 KernelSU"
         }
-        return "内核：$rel\n自动判定：${auto.label}（$why）\n当前生效：${eff.label}"
+        val gate = if (eff == Mode.Magisk || (ov ?: auto) == Mode.Magisk) {
+            if (magiskAllowed(ctx)) "\nMagisk 模式：已授权（Pro 及以上）"
+            else "\nMagisk 模式：需要 Pro 授权，未授权时自动退回 KernelSU"
+        } else {
+            ""
+        }
+        return "内核：$rel\n自动判定：${auto.label}（$why）\n当前生效：${eff.label}$gate"
     }
 }

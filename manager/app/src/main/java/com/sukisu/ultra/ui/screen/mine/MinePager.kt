@@ -202,7 +202,11 @@ fun MinePager(
             Column(Modifier.padding(16.dp)) {
                 Text("VIP 功能", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    if (license?.isPro == true) "已解锁" else "未解锁 —— 到上面粘贴 VIP 卡密",
+                    when {
+                        license?.isVip == true -> "全部功能已解锁（VIP）"
+                        license?.isPro == true -> "Magisk 模式已解锁（Pro）；分区刷写需要 VIP"
+                        else -> "未解锁 —— 到上面粘贴卡密（Pro=Magisk 模式，VIP=全部功能）"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(top = 4.dp)
                 )
