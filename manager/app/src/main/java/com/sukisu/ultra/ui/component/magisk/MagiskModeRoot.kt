@@ -102,7 +102,12 @@ private fun allApps(ctx: Context, allowed: Set<Int>): List<AppEntry> = runCatchi
 }.getOrDefault(emptyList())
 
 private suspend fun loadState(ctx: Context): MagiskUiState = withContext(Dispatchers.IO) {
-    val root = MagiskPatcher.hasRoot()
+    // paperSU: 不能只看 su 能不能跑通。一加那类机器上 su 是 KernelSU 提供的，
+    // 一样返回 uid=0，于是 Magisk 模式会误报"工作中"。必须确认 Magisk 本体存在：
+    // /data/adb/magisk 目录在，而且 magisk -v 能报出东西来。
+    val suWorks = MagiskPatcher.hasRoot()
+    val magiskPresent = suWorks && MagiskPatcher.root("ls /data/adb/magisk").contains("magisk")
+    val root = suWorks && magiskPresent
     val ver = if (root) MagiskPatcher.magiskVersion() else ""
     val installed = root && MagiskPatcher.root("ls /data/adb/magisk").contains("magisk")
     val mods = mutableListOf<MagiskModule>()
@@ -242,6 +247,22 @@ private fun HomePage(state: MagiskUiState, onReload: () -> Unit, onRequestRoot: 
         // 主动请求 root（仅 Magisk 模式有这一块）。
         // 点一下就跑一次 su，Magisk 会弹出授权框；用户点允许（建议勾永久记住）之后，
         // hasRoot() 就为 true，界面会变成"工作中"。
+        if (state.root && !state.magiskInstalled) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("这台机器上没有 Magisk", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "当前运行模式被手动设成了 Magisk，但 /data/adb/magisk 不存在 —— " +
+                            "这台机器的 root 是别的方案提供的。请到设置里切回 KernelSU 模式或自动。",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+        }
         if (!state.root) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
