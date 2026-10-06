@@ -27,3 +27,14 @@ define('ADMIN_PASS_HASH', 'PUT_A_BCRYPT_HASH_HERE');
 
 /** 同一个 IP 每分钟最多几次兑换请求。 */
 define('REDEEM_RATE_PER_MIN', 20);
+
+/**
+ * 签名私钥的路径。【必须放在网站根目录之外】，权限 600，
+ * 属主和 php-fpm 跑的用户一致（一般是 www-data）。
+ *
+ * 例：/etc/papersu/private_key.pem
+ *
+ * 只有 api/sign.php 会读它 —— 也就是「发货时现场签发」那个接口。
+ * 如果你只用卡密池（exe 预先生成好再导入），可以不配这一项。
+ */
+define('SIGNING_KEY_PATH', '');
