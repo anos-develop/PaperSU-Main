@@ -417,4 +417,19 @@ class App(tk.Tk):
 
 
 if __name__ == "__main__":
-    App().mainloop()
+    # windowed 打包（没有控制台）时，一旦启动就崩是什么都看不到的，
+    # 所以这里兜一层，把异常弹成对话框。
+    try:
+        App().mainloop()
+    except Exception:
+        import traceback
+        detail = traceback.format_exc()
+        try:
+            from tkinter import messagebox
+            messagebox.showerror(APP_TITLE, "启动失败：\n\n" + detail)
+        except Exception:
+            pass
+        with open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),
+                               "papersu-license-error.log"), "w", encoding="utf-8") as fh:
+            fh.write(detail)
+        raise
