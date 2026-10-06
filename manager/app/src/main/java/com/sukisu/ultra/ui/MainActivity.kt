@@ -72,6 +72,7 @@ import com.sukisu.ultra.ui.navigation3.LocalNavigator
 import com.sukisu.ultra.ui.navigation3.Navigator
 import com.sukisu.ultra.ui.navigation3.Route
 import com.sukisu.ultra.ui.navigation3.rememberNavigator
+import com.sukisu.ultra.ui.privileged.PartitionFlashScreen
 import com.sukisu.ultra.ui.screen.mine.MinePager
 import com.sukisu.ultra.ui.screen.about.AboutScreen
 import com.sukisu.ultra.ui.screen.appprofile.AppProfileScreen
@@ -304,6 +305,7 @@ class MainActivity : ComponentActivity() {
                                 entry<Route.Module>(swipeDismiss = swipeDismiss) { OpaquePage { mainScreenEntry() } }
                                 entry<Route.Settings>(swipeDismiss = swipeDismiss) { OpaquePage { mainScreenEntry() } }
                                 entry<Route.Mine>(swipeDismiss = swipeDismiss) { OpaquePage { mainScreenEntry() } }
+                                entry<Route.PartitionFlash>(swipeDismiss = swipeDismiss) { OpaquePage { PartitionFlashScreen() } }
                                 entry<Route.KernelFlash>(swipeDismiss = swipeDismiss)  { key ->
                                         KernelFlashScreen(
                                             key.kernelUri,

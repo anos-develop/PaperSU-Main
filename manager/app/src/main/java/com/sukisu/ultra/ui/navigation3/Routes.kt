@@ -45,6 +45,10 @@ sealed interface Route : NavKey, Parcelable {
 
     @Parcelize
     @Serializable
+    data object PartitionFlash : Route
+
+    @Parcelize
+    @Serializable
     data object About : Route
 
     @Parcelize

@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import com.sukisu.ultra.R
 import com.sukisu.ultra.ui.component.engine.EngineMode
 import com.sukisu.ultra.ui.license.LicenseManager
+import com.sukisu.ultra.ui.navigation3.LocalNavigator
+import com.sukisu.ultra.ui.navigation3.Route
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -57,6 +59,7 @@ fun MinePager(
     @Suppress("UNUSED_PARAMETER") isCurrentPage: Boolean,
 ) {
     val context = LocalContext.current
+    val navigator = LocalNavigator.current
     var license by remember { mutableStateOf<LicenseManager.License?>(null) }
     var cardKey by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
@@ -188,6 +191,25 @@ fun MinePager(
                     Button(onClick = { message = "登录接口尚未接入" }) { Text("登录") }
                     TextButton(onClick = { username = ""; password = "" }) { Text("清空") }
                 }
+            }
+        }
+
+        // ------------------------------------------------------------ VIP 功能
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text("VIP 功能", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    if (license?.isPro == true) "已解锁" else "未解锁 —— 到上面粘贴 VIP 卡密",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                TextButton(
+                    onClick = { navigator.push(Route.PartitionFlash) },
+                    modifier = Modifier.padding(top = 4.dp)
+                ) { Text("分区刷写") }
             }
         }
 
