@@ -39,7 +39,10 @@ object Natives {
 
     fun isVersionLessThan(v1Full: String, v2Full: String): Boolean {
         fun extractVersionParts(version: String): List<Int> {
-            val match = Regex("""v\d+(\.\d+)*""").find(version)
+            // paperSU: the full version is a plain number such as 41010-1 now, so the leading
+            // v has to be optional; without that the whole string fails to parse and the
+            // comparison against MINIMAL_SUPPORTED_KERNEL_FULL comes out wrong.
+            val match = Regex("""v?\d+(\.\d+)*""").find(version)
             val simpleVersion = match?.value ?: version
             return simpleVersion.trimStart('v').split('.').map { it.toIntOrNull() ?: 0 }
         }

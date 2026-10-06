@@ -126,13 +126,15 @@ GITHUB_API_BASE  := https://api.github.com/repos/$(REPO_OWNER)/$(REPO_NAME)
 KSU_GITHUB_VER   := $(shell $(CURL_BIN) -s "$(GITHUB_API_BASE)/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\1/')
 GITHUB_COMMITS   := $(shell $(CURL_BIN) -sI "$(GITHUB_API_BASE)/commits?sha=$(REPO_BRANCH)&per_page=1" 2>/dev/null | grep -i "link:" | sed -n 's/.*page=\([0-9]*\)>; rel="last".*/\1/p')
 LOCAL_COUNT     := $(if $(GITHUB_COMMITS),$(GITHUB_COMMITS),$(git_commit_count))
-KSU_VERSION     := $(if $(LOCAL_COUNT),$(shell expr $(VERSION_BASE) + $(LOCAL_COUNT) - $(VERSION_OFFSET)),13000)
+# paperSU: pinned to 41010 so the module and the manager can never disagree.
+KSU_VERSION     := 41010
 VERSION_TAG     := $(or $(KSU_GITHUB_VER),$(git_latest_tag),4.2.0)
 # paperSU: ddk builds happen inside a container without git metadata, so the original
 # fallback rendered on-device as "v4.2.0-SukiSU-Ultra-unknown@unknown". Use a fixed
 # paperSU string for that case, while still honouring git metadata when it exists and
 # an explicit override when one is passed in.
-KSU_VERSION_FULL := $(if $(KSU_VERSION_FULL_OVERRIDE),$(KSU_VERSION_FULL_OVERRIDE),$(if $(call git_short_sha),v$(VERSION_TAG)-$(call git_short_sha)@$(call git_branch),v$(VERSION_TAG)-paperSU))
+# paperSU: pinned to 41010-1, the same string the manager shows.
+KSU_VERSION_FULL := $(if $(KSU_VERSION_FULL_OVERRIDE),$(KSU_VERSION_FULL_OVERRIDE),41010-1)
 $(info -- $(REPO_NAME) version: $(KSU_VERSION) [$(KSU_VERSION_FULL)])
 
 ccflags-y += -DKSU_VERSION=$(KSU_VERSION)

@@ -12,8 +12,10 @@ extra["androidBuildToolsVersion"] = "37.0.0"
 extra["androidCompileNdkVersion"] = libs.versions.ndk.get()
 extra["androidSourceCompatibility"] = JavaVersion.VERSION_21
 extra["androidTargetCompatibility"] = JavaVersion.VERSION_21
-extra["managerVersionCode"] = getVersionCode()
-extra["managerVersionName"] = getVersionName()
+// paperSU: the versions are pinned instead of derived from the commit count, so the manager,
+// the kernel module and the full version string all report 41010-1 together.
+extra["managerVersionCode"] = 41010
+extra["managerVersionName"] = "41010-1"
 
 fun getGitCommitCount(): Int {
     val process = Runtime.getRuntime().exec(arrayOf("git", "rev-list", "--count", "HEAD"))
