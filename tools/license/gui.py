@@ -27,13 +27,13 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 import push
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 
 APP_TITLE = "paperSU 卡密签发"
-OPENSSL_CANDIDATES = (
-    r"D:\Program Files\Git\usr\bin\openssl.exe",
-    r"D:\Program Files\Git\mingw64\bin\openssl.exe",
-    "openssl",
-)
+# 只是给 genkey/sign 那两个命令行脚本留个后备；exe 本身已经不需要 openssl 了。
+# 不写死绝对路径，靠 PATH 找。
+OPENSSL_CANDIDATES = ("openssl", "openssl.exe")
 
 
 def openssl_path() -> str:
@@ -56,18 +56,14 @@ def b64url_decode(text: str) -> bytes:
 
 
 def sign_payload(payload: bytes, priv_path: str) -> bytes:
-    ossl = openssl_path()
-    if not ossl:
-        raise RuntimeError("找不到 openssl（装个 Git for Windows 就有了）")
-    with tempfile.TemporaryDirectory() as tmp:
-        pfile = os.path.join(tmp, "p.bin")
-        sfile = os.path.join(tmp, "s.bin")
-        with open(pfile, "wb") as fh:
-            fh.write(payload)
-        subprocess.run([ossl, "dgst", "-sha256", "-sign", priv_path, "-out", sfile, pfile],
-                       check=True, capture_output=True)
-        with open(sfile, "rb") as fh:
-            return fh.read()
+    """ECDSA P-256 over SHA-256, DER encoded.
+
+    这就是 Android 端 Signature.getInstance("SHA256withECDSA") 期待的形式，
+    已经跟 openssl 交叉验证过。不再依赖外部 openssl，所以打包成 exe 在哪台机器上都能签。
+    """
+    with open(priv_path, "rb") as fh:
+        key = serialization.load_pem_private_key(fh.read(), password=None)
+    return key.sign(payload, ec.ECDSA(hashes.SHA256()))
 
 
 def make_card(priv_path: str, user: str, tier: str, exp: str) -> str:
@@ -90,21 +86,13 @@ def verify_card(card: str, pub_path: str):
         signature = b64url_decode(tail)
     except Exception as exc:
         return False, "base64 解不开：%s" % exc
-    ossl = openssl_path()
-    if not ossl or not os.path.exists(pub_path):
-        return False, "缺少 openssl 或公钥文件"
-    with tempfile.TemporaryDirectory() as tmp:
-        pfile = os.path.join(tmp, "p.bin")
-        sfile = os.path.join(tmp, "s.bin")
-        with open(pfile, "wb") as fh:
-            fh.write(payload)
-        with open(sfile, "wb") as fh:
-            fh.write(signature)
-        proc = subprocess.run(
-            [ossl, "dgst", "-sha256", "-verify", pub_path, "-signature", sfile, pfile],
-            capture_output=True,
-        )
-    if proc.returncode != 0:
+    if not os.path.exists(pub_path):
+        return False, "找不到公钥文件：%s" % pub_path
+    try:
+        with open(pub_path, "rb") as fh:
+            pub = serialization.load_pem_public_key(fh.read())
+        pub.verify(signature, payload, ec.ECDSA(hashes.SHA256()))
+    except Exception:
         return False, "签名对不上 —— 不是本密钥签发的卡密"
     try:
         data = json.loads(payload.decode("utf-8"))

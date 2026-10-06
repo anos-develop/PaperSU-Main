@@ -56,16 +56,11 @@ def main():
         ensure_ascii=False,
     ).encode("utf-8")
 
-    ossl = openssl_path()
-    import tempfile
-    with tempfile.TemporaryDirectory() as tmp:
-        pfile = os.path.join(tmp, "payload.bin")
-        sfile = os.path.join(tmp, "sig.bin")
-        with open(pfile, "wb") as fh:
-            fh.write(payload)
-        subprocess.run([ossl, "dgst", "-sha256", "-sign", priv, "-out", sfile, pfile], check=True)
-        with open(sfile, "rb") as fh:
-            signature = fh.read()
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    with open(priv, "rb") as fh:
+        key = serialization.load_pem_private_key(fh.read(), password=None)
+    signature = key.sign(payload, ec.ECDSA(hashes.SHA256()))
 
     card = b64url(payload) + "." + b64url(signature)
     print(card)
