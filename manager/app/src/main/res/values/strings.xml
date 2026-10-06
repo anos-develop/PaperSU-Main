@@ -730,4 +730,5 @@
     <string name="magisk_log_empty">(no entries)</string>
     <string name="magisk_log_clear">Clear log</string>
     <string name="magisk_gpl_title">Open source licence</string>
-    <string name="magisk_gpl_body">The boot patching capability in this app comes from Magisk by topjohnwu, licensed GPL-3.0-or-later. The full licence text ships inside the APK at assets/magisk/LICENSE-Magisk. This app is released under GPL-3.0-or-later as well.</string></resources>
+    <string name="magisk_gpl_body">The boot patching capability in this app comes from Magisk by topjohnwu, licensed GPL-3.0-or-later. The full licence text ships inside the APK at assets/magisk/LICENSE-Magisk. This app is released under GPL-3.0-or-later as well.</string>    <string name="mine">Mine</string>
+</resources>

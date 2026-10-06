@@ -21,3 +21,7 @@ __pycache__
 /AnyKernel3-paperSU/LICENSE
 /AnyKernel3-paperSU/.ak3-commit
 /AnyKernel3-paperSU/*.zip
+
+# card-key signing material must never be committed
+tools/license/keys/
+*.pem

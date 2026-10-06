@@ -723,4 +723,5 @@
     <string name="magisk_log_empty">（暂无记录）</string>
     <string name="magisk_log_clear">清空日志</string>
     <string name="magisk_gpl_title">开源许可</string>
-    <string name="magisk_gpl_body">本应用的 boot 修补能力来自 Magisk，作者 topjohnwu，许可证 GPL-3.0-or-later。完整许可证文本随 APK 打包在 assets/magisk/LICENSE-Magisk。本应用同样以 GPL-3.0-or-later 发布。</string></resources>
+    <string name="magisk_gpl_body">本应用的 boot 修补能力来自 Magisk，作者 topjohnwu，许可证 GPL-3.0-or-later。完整许可证文本随 APK 打包在 assets/magisk/LICENSE-Magisk。本应用同样以 GPL-3.0-or-later 发布。</string>    <string name="mine">我的</string>
+</resources>

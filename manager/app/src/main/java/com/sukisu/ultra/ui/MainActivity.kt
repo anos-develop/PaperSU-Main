@@ -72,6 +72,7 @@ import com.sukisu.ultra.ui.navigation3.LocalNavigator
 import com.sukisu.ultra.ui.navigation3.Navigator
 import com.sukisu.ultra.ui.navigation3.Route
 import com.sukisu.ultra.ui.navigation3.rememberNavigator
+import com.sukisu.ultra.ui.screen.mine.MinePager
 import com.sukisu.ultra.ui.screen.about.AboutScreen
 import com.sukisu.ultra.ui.screen.appprofile.AppProfileScreen
 import com.sukisu.ultra.ui.screen.colorpalette.ColorPaletteScreen
@@ -302,6 +303,7 @@ class MainActivity : ComponentActivity() {
                                 entry<Route.SuperUser>(swipeDismiss = swipeDismiss) { OpaquePage { mainScreenEntry() } }
                                 entry<Route.Module>(swipeDismiss = swipeDismiss) { OpaquePage { mainScreenEntry() } }
                                 entry<Route.Settings>(swipeDismiss = swipeDismiss) { OpaquePage { mainScreenEntry() } }
+                                entry<Route.Mine>(swipeDismiss = swipeDismiss) { OpaquePage { mainScreenEntry() } }
                                 entry<Route.KernelFlash>(swipeDismiss = swipeDismiss)  { key ->
                                         KernelFlashScreen(
                                             key.kernelUri,
@@ -504,6 +506,7 @@ fun MainScreen(
                         1 -> if (contentReady || isCurrentPage) SuperUserPager(navController, bottomInnerPadding, isCurrentPage)
                         2 -> if (contentReady || isCurrentPage) ModulePager(bottomInnerPadding, isCurrentPage)
                         3 -> if (contentReady || isCurrentPage) SettingPager(navController, bottomInnerPadding, isCurrentPage)
+                        4 -> if (contentReady || isCurrentPage) MinePager(bottomInnerPadding, isCurrentPage)
                     }
                 }
                 // paperSU: 7kimisu personalization overlays (snow / troll rain).
