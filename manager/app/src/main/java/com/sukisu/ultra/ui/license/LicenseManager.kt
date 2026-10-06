@@ -93,7 +93,7 @@ object LicenseManager {
 
     /** Verify a card key without touching storage. */
     fun verify(cardKey: String): Outcome {
-        if (PUBLIC_KEY_BASE64 == "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEUK6tHfC0jM90XtZmpXJtyUsabvvlxpNlxCQFvAUj9d3hfyFIsZ5MrETEFClhHzxGYxq6tEDN8BUHiw6Kqv2ZhQ==") {
+        if (PUBLIC_KEY_BASE64.length < 40) {
             return Outcome.Bad("还没有内置公钥：先用 tools/license/genkey.py 生成密钥对，再把公钥填进 LicenseManager")
         }
         val dot = cardKey.lastIndexOf('.')
