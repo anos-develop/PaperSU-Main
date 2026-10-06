@@ -141,11 +141,14 @@ ccflags-y += -DKSU_VERSION=$(KSU_VERSION)
 ccflags-y += -DKSU_VERSION_FULL=\"$(KSU_VERSION_FULL)\"
 
 ifndef KSU_EXPECTED_SIZE
-KSU_EXPECTED_SIZE := 0x36d
+# paperSU: this pair is the upstream manager signature and is deliberately left as is.
+# Ours is supplied as EXPECTED_SIZE2 / EXPECTED_HASH2 at build time, and apk_sign.c
+# accepts either. Replacing this pair instead would lock the upstream manager out.
+KSU_EXPECTED_SIZE := 0x35c
 endif
 
 ifndef KSU_EXPECTED_HASH
-KSU_EXPECTED_HASH := 14ea1b98c9f693f282a05022b8cf02dcbd2dd8e28c9d6b97bd6acfda1352f82f
+KSU_EXPECTED_HASH := 947ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef
 endif
 
 ifdef KSU_MANAGER_PACKAGE
