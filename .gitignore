@@ -30,3 +30,8 @@ tools/license/keys/
 tools/license/dist/
 tools/license/build/
 *.spec
+
+# licence service state
+tools/authsite/data/
+tools/authsite/config.php
+tools/license/handled.json

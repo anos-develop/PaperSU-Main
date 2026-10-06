@@ -20,6 +20,7 @@ import subprocess
 import sys
 import tempfile
 import tkinter as tk
+import push
 from tkinter import filedialog, messagebox, ttk
 
 APP_TITLE = "paperSU 卡密签发"
@@ -173,6 +174,37 @@ class App(tk.Tk):
         ttk.Button(bar, text="复制全部卡密", command=self.copy_all).pack(side="left", padx=4)
         ttk.Button(bar, text="清空列表", command=self.clear).pack(side="left", padx=4)
 
+        site = ttk.LabelFrame(self, text="授权站（可选 —— 卡密本身离线就能用，这里只是登记 + 限制一张卡能用几次）")
+        site.pack(fill="x", **pad)
+        self.site_var = tk.StringVar(value="https://vip-anos-rekey.adt.shdiv.net")
+        self.secret_var = tk.StringVar()
+        r1 = ttk.Frame(site); r1.pack(fill="x", padx=6, pady=2)
+        ttk.Label(r1, text="授权站地址", width=24).pack(side="left")
+        ttk.Entry(r1, textvariable=self.site_var).pack(side="left", fill="x", expand=True)
+        r2 = ttk.Frame(site); r2.pack(fill="x", padx=6, pady=2)
+        ttk.Label(r2, text="共享密钥 API_SECRET", width=24).pack(side="left")
+        ttk.Entry(r2, textvariable=self.secret_var, show="*").pack(side="left", fill="x", expand=True)
+        ttk.Button(r2, text="推送列表里全部", command=self.push_all).pack(side="left", padx=6)
+        self.site_status = tk.StringVar(value="")
+        ttk.Label(site, textvariable=self.site_status, wraplength=920, justify="left").pack(fill="x", padx=6, pady=2)
+
+        store = ttk.LabelFrame(self, text="店铺对接（拉订单 → 自动签发 → 自动推送到授权站）")
+        store.pack(fill="x", **pad)
+        self.pull_var = tk.StringVar()
+        self.path_var = tk.StringVar()
+        self.idf_var = tk.StringVar(value="id")
+        self.userf_var = tk.StringVar(value="user")
+        for label, var, narrow in (("订单接口 URL", self.pull_var, False),
+                                   ("数组路径（可空）", self.path_var, False),
+                                   ("订单号字段", self.idf_var, True),
+                                   ("用户字段", self.userf_var, True)):
+            rr = ttk.Frame(store); rr.pack(fill="x", padx=6, pady=2)
+            ttk.Label(rr, text=label, width=24).pack(side="left")
+            ttk.Entry(rr, textvariable=var, width=12 if narrow else 60).pack(
+                side="left", fill=None if narrow else "x", expand=not narrow, padx=4)
+        ttk.Button(store, text="拉一次并推送", command=self.pull_once).pack(anchor="w", padx=6, pady=2)
+        self.pull_status = tk.StringVar(value="")
+        ttk.Label(store, textvariable=self.pull_status, wraplength=920, justify="left").pack(fill="x", padx=6, pady=2)
         check = ttk.LabelFrame(self, text="校验（粘贴一张卡密，看它解析出来是什么）")
         check.pack(fill="both", **pad)
         self.check_var = tk.StringVar()
@@ -184,6 +216,63 @@ class App(tk.Tk):
         self.status = tk.StringVar(value="就绪")
         ttk.Label(self, textvariable=self.status, anchor="w").pack(fill="x", padx=10, pady=4)
 
+    def _state_path(self):
+        base = os.path.dirname(os.path.abspath(sys.argv[0])) if getattr(sys, "frozen", False) else os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(base, "handled.json")
+
+    def push_all(self):
+        if not self.rows:
+            messagebox.showinfo(APP_TITLE, "列表是空的，先生成几张")
+            return
+        cards = [{"key": r["card"], "user": r["user"], "tier": r["tier"],
+                  "exp": "" if r["exp"] == "永不过期" else r["exp"]} for r in self.rows]
+        self.site_status.set("推送中…")
+        self.update_idletasks()
+        ok, msg = push.push_cards(self.site_var.get(), self.secret_var.get(), cards)
+        self.site_status.set(("✓ " if ok else "✗ ") + msg)
+
+    def pull_once(self):
+        url = self.pull_var.get().strip()
+        if not url:
+            messagebox.showinfo(APP_TITLE, "先填店铺的订单接口 URL")
+            return
+        priv = self.priv_var.get().strip()
+        if not priv or not os.path.exists(priv):
+            messagebox.showerror(APP_TITLE, "先选私钥文件")
+            return
+        self.pull_status.set("拉取中…")
+        self.update_idletasks()
+        orders, err = push.pull_orders(url, self.path_var.get().strip(),
+                                       self.idf_var.get().strip() or "id",
+                                       self.userf_var.get().strip() or "user",
+                                       self.tier_var.get().strip() or "vip")
+        if err:
+            self.pull_status.set("✗ " + err)
+            return
+        state = self._state_path()
+        handled = push.load_state(state)
+        fresh = [o for o in orders if o["order"] not in handled]
+        if not fresh:
+            self.pull_status.set("拉到 %d 个订单，没有新的（已处理过的记在 %s）" % (len(orders), os.path.basename(state)))
+            return
+        made = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cards = []
+        for o in fresh:
+            try:
+                card = make_card(priv, o["user"] or o["order"], o["tier"], o["exp"])
+            except Exception as exc:
+                self.pull_status.set("✗ 签发失败：%s" % exc)
+                return
+            cards.append({"key": card, "user": o["user"], "tier": o["tier"],
+                          "exp": o["exp"], "order": o["order"]})
+            self.rows.append({"card": card, "user": o["user"], "tier": o["tier"],
+                              "exp": o["exp"] or "永不过期", "made": made})
+            self.tree.insert("", "end", values=(card, o["user"], o["tier"], o["exp"] or "永不过期", made))
+        ok, msg = push.push_cards(self.site_var.get(), self.secret_var.get(), cards)
+        if ok:
+            handled.update(o["order"] for o in fresh)
+            push.save_state(state, handled)
+        self.pull_status.set(("✓ " if ok else "✗ ") + "新签 %d 张；%s" % (len(fresh), msg))
     def _pick(self, var):
         path = filedialog.askopenfilename(filetypes=[("PEM", "*.pem"), ("全部", "*.*")])
         if path:
