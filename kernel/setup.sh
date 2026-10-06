@@ -39,7 +39,12 @@ perform_cleanup() {
 # Sets up or update KernelSU environment
 setup_kernelsu() {
     echo "[+] Setting up KernelSU..."
-    test -d "$GKI_ROOT/KernelSU" || git clone https://github.com/SukiSU-Ultra/SukiSU-Ultra KernelSU && echo "[+] Repository cloned."
+    # paperSU: the kernel sources have to come from this repository, not from upstream.
+    # Everything that matters for signing -- kernel/Kbuild, which carries the expected
+    # manager certificate -- is defined here. Cloning SukiSU-Ultra meant the version
+    # number came from paperSU while the certificate checks came from upstream, and no
+    # amount of editing this repository's Kbuild changed what was actually compiled.
+    test -d "$GKI_ROOT/KernelSU" || git clone https://github.com/anos-develop/PaperSU-Main KernelSU && echo "[+] Repository cloned."
     cd "$GKI_ROOT/KernelSU"
     git stash && echo "[-] Stashed current changes."
     if [ "$(git status | grep -Po 'v\d+(\.\d+)*' | head -n1)" ]; then
