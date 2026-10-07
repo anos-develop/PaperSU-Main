@@ -295,10 +295,12 @@ class MainActivity : ComponentActivity() {
                                 entry<Route.Install>(swipeDismiss = swipeDismiss) { key -> OpaquePage { InstallScreen(preselectedKernelUri = key.preselectedKernelUri) } }
                                 entry<Route.Flash>(swipeDismiss = swipeDismiss) { key -> OpaquePage { FlashScreen(key.flashIt) } }
                                 entry<Route.ExecuteModuleAction>(swipeDismiss = swipeDismiss) { key ->
+                                    OpaquePage {
                                     ExecuteModuleActionScreen(
                                         key.moduleId,
                                         key.fromShortcut
                                     )
+                                    }
                                 }
                                 entry<Route.Home>(swipeDismiss = swipeDismiss) { OpaquePage { mainScreenEntry() } }
                                 entry<Route.SuperUser>(swipeDismiss = swipeDismiss) { OpaquePage { mainScreenEntry() } }
@@ -307,12 +309,14 @@ class MainActivity : ComponentActivity() {
                                 entry<Route.Mine>(swipeDismiss = swipeDismiss) { OpaquePage { mainScreenEntry() } }
                                 entry<Route.PartitionFlash>(swipeDismiss = swipeDismiss) { OpaquePage { PartitionFlashScreen() } }
                                 entry<Route.KernelFlash>(swipeDismiss = swipeDismiss)  { key ->
+                                    OpaquePage {
                                         KernelFlashScreen(
                                             key.kernelUri,
                                             key.selectedSlot,
                                             key.kpmPatchEnabled,
                                             key.kpmUndoPatch
                                         )
+                                    }
                                     }
                                     entry<Route.Kpm>(swipeDismiss = swipeDismiss)  { OpaquePage { KpmScreen() } }
                                     entry<Route.SuSFS>(swipeDismiss = swipeDismiss)  { OpaquePage { SuSFSScreen() } }
