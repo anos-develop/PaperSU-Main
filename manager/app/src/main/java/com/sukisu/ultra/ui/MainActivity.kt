@@ -348,6 +348,15 @@ class MainActivity : ComponentActivity() {
                                     UiMode.Miuix -> Scaffold { navDisplay() }
                                 }
                             }
+                            // paperSU: 7kimisu personalization overlays (snow / troll rain).
+                            //
+                            // 放在 NavDisplay 外面、壁纸上面。原来这两行挂在 MainScreen 的
+                            // Pager Box 里，也就是 Route.Main 那一页内部 —— 任何被 push 上来的
+                            // 页面（主题、关于、模块仓库…）都会完整盖住它，于是在「主题」页拨
+                            // 开雪花开关，效果画在底下看不见，看起来就是"打开了没效果"。
+                            // 挂到这一层则覆盖整个 NavDisplay，任何页面之上都能看到。
+                            if (LocalEnableSnowfall.current) SnowfallOverlay()
+                            if (LocalEnableTrollRain.current) TrollRainOverlay()
                         }
                         SideEffect { contentReady = true }
                     }
