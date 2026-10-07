@@ -105,19 +105,21 @@ fun createRootShell(globalMnt: Boolean = false): Shell {
     // 自己 spawn 就没有这套探测，行为是确定的；libsu 只负责包装这个现成的进程。
     val proc: Process = run {
         val ksud = File(getKsuDaemonPath())
-        // 注意：这里【不能】用 redirectErrorStream(true)。
-        // libsu 的 ShellImpl 会在两个流上分别发 echo SHELL_TEST 并读回，stderr 被并进
-        // stdout 会让它判定"Created process is not a shell"—— 我第一版就是这么写的，
-        // 结果错误照旧。让 libsu 自己接管这两个流。
-        if (ksud.exists()) {
+        // paperSU: 不能只看 libksud.so 在不在 —— 那个文件是随 APK 打包的 .so，任何机器上
+        // 都存在。真正的条件是 KernelSU 是否在跑（内核 UAPI 版本 > 0）。
+        // 我第一版只判断了文件存在，于是 4.x 的 K20 Pro 也走进了 ksud 分支：ksud 没有内核
+        // 可谈，直接失败，libsu 便报 "Created process is not a shell"。
+        val ksuRunning = runCatching { Natives.kernelUAPIVersion > 0 }.getOrDefault(false)
+        if (ksuRunning && ksud.exists()) {
             val args = mutableListOf(ksud.absolutePath, "debug", "su")
             if (globalMnt) args += "-g"
+            Log.i(TAG, "createRootShell: KernelSU 在跑，用 ksud")
             ProcessBuilder(args).start()
         } else {
-            // 没有 ksud ⇒ 不是 KernelSU 环境，直接用这台机器上真正存在的 su。
+            // 没有 KernelSU ⇒ 用这台机器上真正存在的 su（Magisk 的）。
             val su = com.sukisu.ultra.ui.component.magisk.MagiskPatcher.findSu()
                 ?: error("找不到 su 二进制")
-            Log.i(TAG, "createRootShell: ksud 不存在，改用 $su")
+            Log.i(TAG, "createRootShell: KernelSU 未运行，改用 $su")
             val args = mutableListOf(su)
             if (globalMnt) args += "-mm"
             ProcessBuilder(args).start()

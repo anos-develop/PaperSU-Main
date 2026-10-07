@@ -1,5 +1,6 @@
 package com.sukisu.ultra.ui.screen.susfs.util
 
+import com.sukisu.ultra.ui.util.getRootShell
 import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
@@ -200,7 +201,7 @@ object SuSFSRepository {
 
     @SuppressLint("SdCardPath")
     suspend fun setCmdlineOrBootconfigFile(context: Context, sourceUri: String): Boolean {
-        val shell = Shell.getShell()
+        val shell = getRootShell()
         val targetPath = SuSFSConfig.CMDLINE_OR_BOOTCONFIG_FILE
         val targetDir = targetPath.substringBeforeLast('/')
 

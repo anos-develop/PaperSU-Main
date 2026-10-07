@@ -78,7 +78,7 @@ object SuSFSCommands {
     }
 
     private fun runCmdWithResult(cmd: String): CommandResult {
-        val result = Shell.getShell().newJob().add(cmd).exec()
+        val result = getRootShell().newJob().add(cmd).exec()
         return CommandResult(
             isSuccess = result.isSuccess,
             output = result.out.joinToString("\n"),
@@ -88,7 +88,7 @@ object SuSFSCommands {
 
     suspend fun getCurrentSlotInfo(): List<SlotInfo> = withContext(Dispatchers.IO) {
         try {
-            val shell = Shell.getShell()
+            val shell = getRootShell()
             listOf("boot_a", "boot_b").mapNotNull { slot ->
                 val uname = runCmd(shell,
                     $$"strings -n 20 /dev/block/by-name/$$slot | awk '/Linux version/ && ++c==2 {print $3; exit}'"
@@ -103,7 +103,7 @@ object SuSFSCommands {
 
     suspend fun getCurrentActiveSlot(): String = withContext(Dispatchers.IO) {
         try {
-            when (Shell.getShell().newJob().add("getprop ro.boot.slot_suffix").to(mutableListOf(), null).exec().out.firstOrNull()?.trim()) {
+            when (getRootShell().newJob().add("getprop ro.boot.slot_suffix").to(mutableListOf(), null).exec().out.firstOrNull()?.trim()) {
                 "_a" -> "boot_a"
                 "_b" -> "boot_b"
                 else -> "unknown"

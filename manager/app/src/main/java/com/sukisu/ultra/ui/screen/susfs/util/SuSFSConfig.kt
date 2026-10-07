@@ -1,5 +1,6 @@
 package com.sukisu.ultra.ui.screen.susfs.util
 
+import com.sukisu.ultra.ui.util.getRootShell
 import android.annotation.SuppressLint
 import com.sukisu.ultra.ui.util.getKsuDaemonPath
 import com.topjohnwu.superuser.Shell
@@ -36,21 +37,21 @@ object SuSFSConfig {
     const val CGROUP_BASE_PATH = "/sys/fs/cgroup"
 
     private suspend fun configGet(key: String): String = withContext(Dispatchers.IO) {
-        val shell = Shell.getShell()
+        val shell = getRootShell()
         runCmd(shell, "${getKsuDaemonPath()} susfs config get $key").trim()
     }
 
     suspend fun get(key: String): String = configGet(key)
 
     suspend fun configSet(key: String, value: String): Boolean = withContext(Dispatchers.IO) {
-        val shell = Shell.getShell()
+        val shell = getRootShell()
         shell.newJob().add("${getKsuDaemonPath()} susfs config set $key ${shellQuote(value)}").exec().isSuccess
     }
 
     suspend fun set(key: String, value: String): Boolean = configSet(key, value)
 
     suspend fun configSetMulti(key: String, values: Set<String>, separator: String): Boolean = withContext(Dispatchers.IO) {
-        val shell = Shell.getShell()
+        val shell = getRootShell()
         val raw = values.joinToString(separator)
         shell.newJob().add("${getKsuDaemonPath()} susfs config set $key ${shellQuote(raw)}").exec().isSuccess
     }
@@ -59,7 +60,7 @@ object SuSFSConfig {
         configSetMulti(key, values, separator)
 
     private suspend fun configGetMulti(key: String, separator: String = ";"): Set<String> = withContext(Dispatchers.IO) {
-        val shell = Shell.getShell()
+        val shell = getRootShell()
         val raw = runCmd(shell, "${getKsuDaemonPath()} susfs config get $key")
         if (raw.isBlank()) emptySet() else raw.split(separator).filter { it.isNotBlank() }.toSet()
     }
