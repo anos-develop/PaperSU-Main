@@ -176,14 +176,23 @@ object MagiskPatcher {
     fun policyHasUid(uid: Int, allow: Boolean): Boolean = runCatching {
         val out = root("magisk --sqlite \"SELECT uid FROM policies WHERE uid=$uid\"")
         val has = out.contains("uid=$uid")
-        if (allow) has else !has
+        val ok = if (allow) has else !has
+        Log.i(TAG, "policyHasUid uid=$uid allow=$allow raw=[${out.trim().take(200)}] -> $ok")
+        ok
     }.getOrDefault(false)
 
-    /** 授予 / 撤销某个 uid 的 root。allow=true → policy=2，false → 删除该行。 */
-    fun setUidPolicy(uid: Int, allow: Boolean): String = if (allow) {
-        root("magisk --sqlite \"REPLACE INTO policies (uid,policy,until,logging,notification) VALUES ($uid,2,0,1,1)\"")
-    } else {
-        root("magisk --sqlite \"DELETE FROM policies WHERE uid=$uid\"")
+    /** 授予 / 撤销某个 uid 的 root。allow=true -> policy=2，false -> 删除该行。 */
+    fun setUidPolicy(uid: Int, allow: Boolean): String {
+        val cmd = if (allow) {
+            "magisk --sqlite \"REPLACE INTO policies (uid,policy,until,logging,notification) VALUES ($uid,2,0,1,1)\"",
+        } else {
+            "magisk --sqlite \"DELETE FROM policies WHERE uid=$uid\"",
+        }
+        val out = root(cmd)
+        // paperSU: 这里以前没有任何日志 —— 写失败时外面完全看不出来，
+        // 只表现为开关弹回去 / 目标应用照样触发 Magisk 的询问框。
+        Log.i(TAG, "setUidPolicy uid=$uid allow=$allow -> [${out.trim().take(300)}]")
+        return out
     }
 
     // -----------------------------------------------------------------------

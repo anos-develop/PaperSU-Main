@@ -34,6 +34,7 @@ import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -309,6 +310,45 @@ private fun SuperUserPage(ctx: Context, state: MagiskUiState, toast: String, onR
     // 表现就是"关闭不了"。现在 checked 直接取表里的真实值，不可能再反相。
     var busy by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var failMsg by remember { mutableStateOf("") }
+
+    // paperSU: 仿 Magisk 的「请求超级用户权限」弹窗。
+    //
+    // Magisk 模式下 su 请求由 magiskd 处理，第三方管理器接不了那个框（换不了它的 UI）。
+    // 但把开关拨开这个动作本身就等于一次"请求" —— 所以在这里弹一个同样形态的确认框：
+    //   · 允许 → 写策略表 → 那个应用之后跑 su 不再弹任何框
+    //   · 拒绝 → 不动策略表
+    // 三个字段用基本类型存，免得依赖 MagiskApp 的具体类型。
+    var askUid by remember { mutableStateOf(-1) }
+    var askLabel by remember { mutableStateOf("") }
+    var askPkg by remember { mutableStateOf("") }
+
+    fun applyPolicy(uid: Int, allow: Boolean) {
+        busy = busy + uid
+        Thread {
+            val out = MagiskPatcher.setUidPolicy(uid, allow)
+            val wrote = MagiskPatcher.policyHasUid(uid, allow)
+            failMsg = if (wrote) "" else "写策略表失败 uid=$uid：${out.trim().take(200)}"
+            Thread.sleep(150)
+            onReload()
+            busy = busy - uid
+        }.start()
+    }
+
+    if (askUid >= 0) {
+        AlertDialog(
+            onDismissRequest = { askUid = -1 },
+            title = { Text("请求超级用户权限") },
+            text = {
+                Text("$askLabel\n$askPkg\nuid=$askUid\n\n是否授予 root 权限？\n（允许后写入 Magisk 策略表，该应用不会再弹任何框）")
+            },
+            confirmButton = {
+                TextButton(onClick = { val u = askUid; askUid = -1; applyPolicy(u, true) }) { Text("允许") }
+            },
+            dismissButton = {
+                TextButton(onClick = { askUid = -1 }) { Text("拒绝") }
+            }
+        )
+    }
     PageColumn {
         Text("超级用户", style = MaterialTheme.typography.headlineSmall)
         Text("下面是你手机上所有有启动图标的应用。打开开关就是给它 root（写进 magisk 的授权表）。",
@@ -332,22 +372,14 @@ private fun SuperUserPage(ctx: Context, state: MagiskUiState, toast: String, onR
                         checked = app.allowed,
                         enabled = app.uid !in busy,
                         onCheckedChange = { want ->
-                        busy = busy + app.uid
-                        Thread {
-                            // paperSU: 写策略表的结果以前被丢掉了，写失败时开关只是
-                            // 悄悄弹回原位，看不出任何原因。现在把结果读出来重写一次，
-                            // 失败就让它留在 failMsg 里显示在页面上。
-                            val out = MagiskPatcher.setUidPolicy(app.uid, want)
-                            val wrote = MagiskPatcher.policyHasUid(app.uid, want)
-                            if (!wrote) {
-                                failMsg = "写策略表失败 uid=${app.uid}：${out.trim().take(200)}"
+                            if (want) {
+                                // 拨开 = 一次授权请求 ⇒ 先弹我们自己的框
+                                askUid = app.uid
+                                askLabel = app.label
+                                askPkg = app.pkg
                             } else {
-                                failMsg = ""
+                                applyPolicy(app.uid, false)
                             }
-                            Thread.sleep(150)
-                            onReload()
-                            busy = busy - app.uid
-                        }.start()
                         }
                     )
                 }
