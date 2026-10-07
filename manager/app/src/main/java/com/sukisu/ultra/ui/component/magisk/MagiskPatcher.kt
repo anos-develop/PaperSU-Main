@@ -184,9 +184,9 @@ object MagiskPatcher {
     /** 授予 / 撤销某个 uid 的 root。allow=true -> policy=2，false -> 删除该行。 */
     fun setUidPolicy(uid: Int, allow: Boolean): String {
         val cmd = if (allow) {
-            "magisk --sqlite \"REPLACE INTO policies (uid,policy,until,logging,notification) VALUES ($uid,2,0,1,1)\"",
+            "magisk --sqlite \"REPLACE INTO policies (uid,policy,until,logging,notification) VALUES ($uid,2,0,1,1)\""
         } else {
-            "magisk --sqlite \"DELETE FROM policies WHERE uid=$uid\"",
+            "magisk --sqlite \"DELETE FROM policies WHERE uid=$uid\""
         }
         val out = root(cmd)
         // paperSU: 这里以前没有任何日志 —— 写失败时外面完全看不出来，
