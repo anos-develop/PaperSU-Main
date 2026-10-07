@@ -505,10 +505,12 @@ fun MainScreen(
                     val isCurrentPage = page == settledPage
                     when (page) {
                         0 -> if (contentReady || isCurrentPage) HomePager(navController, bottomInnerPadding, isCurrentPage)
-                        1 -> if (contentReady || isCurrentPage) SuperUserPager(navController, bottomInnerPadding, isCurrentPage)
-                        2 -> if (contentReady || isCurrentPage) ModulePager(bottomInnerPadding, isCurrentPage)
-                        3 -> if (contentReady || isCurrentPage) SettingPager(navController, bottomInnerPadding, isCurrentPage)
-                        4 -> if (contentReady || isCurrentPage) MinePager(bottomInnerPadding, isCurrentPage)
+                        // paperSU: KPM 移到第二个位置
+                        1 -> if (contentReady || isCurrentPage) KpmScreen(bottomInnerPadding)
+                        2 -> if (contentReady || isCurrentPage) SuperUserPager(navController, bottomInnerPadding, isCurrentPage)
+                        3 -> if (contentReady || isCurrentPage) ModulePager(bottomInnerPadding, isCurrentPage)
+                        4 -> if (contentReady || isCurrentPage) SettingPager(navController, bottomInnerPadding, isCurrentPage)
+                        5 -> if (contentReady || isCurrentPage) MinePager(bottomInnerPadding, isCurrentPage)
                     }
                 }
                 // paperSU: 7kimisu personalization overlays (snow / troll rain).

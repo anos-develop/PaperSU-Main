@@ -35,7 +35,7 @@ import java.io.FileOutputStream
 object NavIcons {
 
     /** 顺序必须和底部导航一致:主页 / 超级用户 / 模块 / 设置 */
-    val keys = listOf("home", "superuser", "module", "setting", "mine")
+    val keys = listOf("home", "kpm", "superuser", "module", "setting", "mine")
 
     /** 落盘尺寸上限(方形边长)。导航图标只有 24dp,256px 足够 2x~3x 屏,还省内存 */
     private const val MAX_PX = 256

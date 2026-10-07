@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cottage
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.Composable
@@ -158,6 +159,8 @@ enum class BottomBarDestination(
     val icon: ImageVector,
 ) {
     Home(R.string.home, Icons.Rounded.Cottage),
+    // paperSU: KPM 作为底部导航第二个标签（原来在设置页里）
+    Kpm(R.string.kpm_title, Icons.Rounded.Memory),
     SuperUser(R.string.superuser, Icons.Rounded.Security),
     Module(R.string.module, Icons.Rounded.Extension),
     Setting(R.string.settings, Icons.Rounded.Settings),

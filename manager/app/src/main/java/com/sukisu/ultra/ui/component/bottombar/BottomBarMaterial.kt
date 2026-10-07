@@ -11,10 +11,12 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.Badge
@@ -47,6 +49,8 @@ fun BottomBarMaterial(navigationBadge: NavigationBadgeState) {
 
     val items = listOf(
         Triple(R.string.home, Icons.Filled.Home, Icons.Outlined.Home),
+        // paperSU: KPM 作为底部导航第二个标签
+        Triple(R.string.kpm_title, Icons.Filled.Memory, Icons.Outlined.Memory),
         Triple(R.string.superuser, Icons.Filled.Shield, Icons.Outlined.Shield),
         Triple(R.string.module, Icons.Filled.Extension, Icons.Outlined.Extension),
         Triple(R.string.settings, Icons.Filled.Settings, Icons.Outlined.Settings)
