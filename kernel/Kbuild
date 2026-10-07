@@ -134,7 +134,7 @@ VERSION_TAG     := $(or $(KSU_GITHUB_VER),$(git_latest_tag),4.2.0)
 # paperSU string for that case, while still honouring git metadata when it exists and
 # an explicit override when one is passed in.
 # paperSU: pinned to 41010-1, the same string the manager shows.
-KSU_VERSION_FULL := $(if $(KSU_VERSION_FULL_OVERRIDE),$(KSU_VERSION_FULL_OVERRIDE),41010-1)
+KSU_VERSION_FULL := $(if $(KSU_VERSION_FULL_OVERRIDE),$(KSU_VERSION_FULL_OVERRIDE),v41010-PaperSU)
 $(info -- $(REPO_NAME) version: $(KSU_VERSION) [$(KSU_VERSION_FULL)])
 
 ccflags-y += -DKSU_VERSION=$(KSU_VERSION)

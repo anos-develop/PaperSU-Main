@@ -520,26 +520,6 @@ fun SettingPagerMaterial(
                 )
             }
 
-            val kpmTitle = stringResource(id = R.string.kpm_title)
-            if (isKpmAvailable) {
-                SegmentedColumn(
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 13.dp),
-                    content = listOf {
-                        SegmentedListItem(
-                            onClick = actions.onOpenKpm,
-                            headlineContent = { Text(kpmTitle) },
-                            supportingContent = { Text(stringResource(id = R.string.settings_kpm_summary)) },
-                            leadingContent = { Icon(Icons.Filled.Fence, kpmTitle) },
-                            trailingContent = {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    null
-                                )
-                            }
-                        )
-                    }
-                )
-            }
 
             val susfsTitle = stringResource(id = R.string.susfs_config_title)
             if (isSusfsSupported) {
@@ -721,6 +701,28 @@ fun SettingPagerMaterial(
                     {
                         SegmentedListItem(
                             onClick = { showBottomSheet = true },
+
+            val kpmTitle = stringResource(id = R.string.kpm_title)
+            if (isKpmAvailable) {
+                SegmentedColumn(
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 13.dp),
+                    content = listOf {
+                        SegmentedListItem(
+                            onClick = actions.onOpenKpm,
+                            headlineContent = { Text(kpmTitle) },
+                            supportingContent = { Text(stringResource(id = R.string.settings_kpm_summary)) },
+                            leadingContent = { Icon(Icons.Filled.Fence, kpmTitle) },
+                            trailingContent = {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    null
+                                )
+                            }
+                        )
+                    }
+                )
+            }
+
                             headlineContent = { Text(stringResource(id = R.string.send_log)) },
                             leadingContent = {
                                 Icon(

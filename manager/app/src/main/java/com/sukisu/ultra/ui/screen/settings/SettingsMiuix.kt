@@ -364,18 +364,6 @@ fun SettingPagerMiuix(
                                 .padding(top = 12.dp)
                                 .fillMaxWidth(),
                         ) {
-                            val kpmTitle = stringResource(id = R.string.kpm_title)
-                            ArrowPreference(
-                                title = kpmTitle,
-                                summary = stringResource(id = R.string.settings_kpm_summary),
-                                startAction = {
-                                    Icon(
-                                        Icons.Rounded.Code,
-                                        modifier = Modifier.padding(end = 6.dp),
-                                        contentDescription = kpmTitle,
-                                        tint = colorScheme.onBackground
-                                    )
-                                },
                                 onClick = {
                                     actions.onOpenKpm()
                                 }
@@ -846,6 +834,20 @@ fun SettingPagerMiuix(
                             MagiskHost()
                         }
                     }
+
+
+                            val kpmTitle = stringResource(id = R.string.kpm_title)
+                            ArrowPreference(
+                                title = kpmTitle,
+                                summary = stringResource(id = R.string.settings_kpm_summary),
+                                startAction = {
+                                    Icon(
+                                        Icons.Rounded.Code,
+                                        modifier = Modifier.padding(end = 6.dp),
+                                        contentDescription = kpmTitle,
+                                        tint = colorScheme.onBackground
+                                    )
+                                },
 
                     Card(
                         modifier = Modifier
