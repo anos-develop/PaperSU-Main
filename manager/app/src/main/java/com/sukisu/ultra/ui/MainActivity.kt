@@ -201,7 +201,16 @@ class MainActivity : ComponentActivity() {
             // paperSU: 两套界面在这里分流。Magisk 模式（内核 4.x，没有 KernelSU）走自己的
             // 极简主页；那套以 ksud 为中心的界面在这类机器上根本组合不出来，硬上只会白屏。
             if (magiskMode) {
-                com.sukisu.ultra.ui.component.magisk.MagiskModeRoot()
+                // paperSU: 内核 4.x 的机器只能走 Magisk 模式，而那是 Pro 功能。
+                // 这里必须查授权 —— detect() 对 4.x 无条件返回 Magisk，若不查，
+                // K20 Pro 这类机器不插卡就直接能用了。
+                val magiskLicensed =
+                    com.sukisu.ultra.ui.license.LicenseManager.current(this)?.isPro == true
+                if (magiskLicensed) {
+                    com.sukisu.ultra.ui.component.magisk.MagiskModeRoot()
+                } else {
+                    com.sukisu.ultra.ui.license.MagiskPaywall()
+                }
                 return@setContent
             }
             val viewModel = viewModel<MainActivityViewModel>()
