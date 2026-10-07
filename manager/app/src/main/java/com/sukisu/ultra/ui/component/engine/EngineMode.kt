@@ -50,7 +50,22 @@ object EngineMode {
         return Mode.entries.firstOrNull { it.name == v }
     }
 
+    /**
+     * 切换运行模式。Magisk 需要 Pro：没授权时拒绝并提示，而不是静默失败。
+     *
+     * 这里挡的是"切换这个动作"，不是 current() 的返回值 —— 早先把门槛加在 current()
+     * 上，结果 EngineRow 自己那句 `current() != Magisk 就 return` 永远成立，
+     * 整个"切换运行模式"入口直接消失了。
+     */
     fun setOverride(mode: Mode?, ctx: Context = ksuApp) {
+        if (mode == Mode.Magisk && !magiskAllowed(ctx)) {
+            android.widget.Toast.makeText(
+                ctx,
+                "Magisk 运行模式需要 Pro 授权",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            return
+        }
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply {
             if (mode == null) remove(KEY_OVERRIDE) else putString(KEY_OVERRIDE, mode.name)
         }.apply()
@@ -71,11 +86,7 @@ object EngineMode {
      * 但 Magisk 需要 Pro：没授权就退回 KernelSU，哪怕内核是 4.x。
      * 用户在界面上会看到「Magisk 模式需要 Pro 授权」的说明，而不是一套用不了的界面。
      */
-    fun current(ctx: Context = ksuApp): Mode {
-        val wanted = override(ctx) ?: detect()
-        if (wanted == Mode.Magisk && !magiskAllowed(ctx)) return Mode.KernelSU
-        return wanted
-    }
+    fun current(ctx: Context = ksuApp): Mode = override(ctx) ?: detect()
 
     /** 给界面用的一句话说明。 */
     fun explain(ctx: Context = ksuApp): String {

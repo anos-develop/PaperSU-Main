@@ -162,7 +162,10 @@ fun SettingPagerMaterial(
                         },
                         {
                             // paperSU: 模块检查更新（LKM 才需要） —— 按运行模式显示
-                            if (uiState.isLkmMode) {
+                            // paperSU: 这些弹窗宿主无论哪种运行模式都要挂着 —— 它们只在被 open()
+                    // 之后才有内容，挂着的成本是零。早先整段放在 isLkmMode 里，
+                    // built-in 模式下点了开关也永远弹不出来。
+                    run {
                                 SegmentedSwitchItem(
                                     icon = Icons.Filled.SystemUpdateAlt,
                                     title = stringResource(id = R.string.settings_module_check_update),
@@ -179,7 +182,10 @@ fun SettingPagerMaterial(
                             // paperSU: 这是一个"按钮"而不是开关 —— 点它弹出确认窗，再下载并刷入
                             // paperSU: 这是一个"按钮"而不是开关 —— 点它弹出确认窗，再下载并刷入
                             // paperSU: 一键隐藏环境（LKM 才有意义） —— 按运行模式显示
-                            if (uiState.isLkmMode) {
+                            // paperSU: 这些弹窗宿主无论哪种运行模式都要挂着 —— 它们只在被 open()
+                    // 之后才有内容，挂着的成本是零。早先整段放在 isLkmMode 里，
+                    // built-in 模式下点了开关也永远弹不出来。
+                    run {
                                 SegmentedListItem(
                                     onClick = { HideEnvDialogState.open() },
                                     headlineContent = { Text(stringResource(id = R.string.settings_hide_env_title)) },
