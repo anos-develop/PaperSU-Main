@@ -695,13 +695,6 @@ fun SettingPagerMaterial(
                 )
             }
 
-            SegmentedColumn(
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 13.dp),
-                content = listOf(
-                    {
-                        SegmentedListItem(
-                            onClick = { showBottomSheet = true },
-
             val kpmTitle = stringResource(id = R.string.kpm_title)
             if (isKpmAvailable) {
                 SegmentedColumn(
@@ -723,6 +716,12 @@ fun SettingPagerMaterial(
                 )
             }
 
+            SegmentedColumn(
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 13.dp),
+                content = listOf(
+                    {
+                        SegmentedListItem(
+                            onClick = { showBottomSheet = true },
                             headlineContent = { Text(stringResource(id = R.string.send_log)) },
                             leadingContent = {
                                 Icon(

@@ -358,18 +358,6 @@ fun SettingPagerMiuix(
                         }
                     }
 
-                    if (isKpmAvailable) {
-                        Card(
-                            modifier = Modifier
-                                .padding(top = 12.dp)
-                                .fillMaxWidth(),
-                        ) {
-                                onClick = {
-                                    actions.onOpenKpm()
-                                }
-                            )
-                        }
-                    }
 
                     KsuIsValid {
                         if (isSusfsSupported) {
@@ -835,7 +823,12 @@ fun SettingPagerMiuix(
                         }
                     }
 
-
+                    if (isKpmAvailable) {
+                        Card(
+                            modifier = Modifier
+                                .padding(top = 12.dp)
+                                .fillMaxWidth(),
+                        ) {
                             val kpmTitle = stringResource(id = R.string.kpm_title)
                             ArrowPreference(
                                 title = kpmTitle,
@@ -848,6 +841,12 @@ fun SettingPagerMiuix(
                                         tint = colorScheme.onBackground
                                     )
                                 },
+                                onClick = {
+                                    actions.onOpenKpm()
+                                }
+                            )
+                        }
+                    }
 
                     Card(
                         modifier = Modifier
