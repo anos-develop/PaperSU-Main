@@ -96,25 +96,39 @@ fun Uri.getFileName(context: Context): String? {
 
 fun createRootShell(globalMnt: Boolean = false): Shell {
     Shell.enableVerboseLogging = BuildConfig.DEBUG
-    val builder = Shell.Builder.create()
-    return try {
-        if (globalMnt) {
-            builder.build(getKsuDaemonPath(), "debug", "su", "-g")
+    // paperSU: 自己 spawn su / ksud，再交给 libsu 包一层（Shell.Builder.build(Process)）。
+    //
+    // 原来走 builder.build("su")，那是让 libsu 自己去建 root shell —— 它会 spawn su 并做两步
+    // 自检（echo SHELL_TEST、id 里找 uid=0）。4.x 机器上 su 是 Magisk 提供的：自检会撞上
+    // Magisk 的授权框，超时后 libsu 报 "Created process is not a shell"，然后按"Magisk 未
+    // 安装"处理，弹出"需要下载完整版 Magisk"，KernelSU 界面同时组合不出来变成空白页。
+    // 自己 spawn 就没有这套探测，行为是确定的；libsu 只负责包装这个现成的进程。
+    val proc: Process = run {
+        val ksud = File(getKsuDaemonPath())
+        // 注意：这里【不能】用 redirectErrorStream(true)。
+        // libsu 的 ShellImpl 会在两个流上分别发 echo SHELL_TEST 并读回，stderr 被并进
+        // stdout 会让它判定"Created process is not a shell"—— 我第一版就是这么写的，
+        // 结果错误照旧。让 libsu 自己接管这两个流。
+        if (ksud.exists()) {
+            val args = mutableListOf(ksud.absolutePath, "debug", "su")
+            if (globalMnt) args += "-g"
+            ProcessBuilder(args).start()
         } else {
-            builder.build(getKsuDaemonPath(), "debug", "su")
+            // 没有 ksud ⇒ 不是 KernelSU 环境，直接用这台机器上真正存在的 su。
+            val su = com.sukisu.ultra.ui.component.magisk.MagiskPatcher.findSu()
+                ?: error("找不到 su 二进制")
+            Log.i(TAG, "createRootShell: ksud 不存在，改用 $su")
+            val args = mutableListOf(su)
+            if (globalMnt) args += "-mm"
+            ProcessBuilder(args).start()
         }
+    }
+    return try {
+        Shell.Builder.create().build(proc)
     } catch (e: Throwable) {
-        Log.w(TAG, "ksu failed: ", e)
-        try {
-            if (globalMnt) {
-                builder.build("su", "-mm")
-            } else {
-                builder.build("su")
-            }
-        } catch (e: Throwable) {
-            Log.e(TAG, "su failed: ", e)
-            builder.build("sh")
-        }
+        Log.w(TAG, "build(Process) failed, killing the spawned process", e)
+        runCatching { proc.destroy() }
+        throw e
     }
 }
 
@@ -487,7 +501,9 @@ fun downloadBoot(
         }
     }
 
-    val result = Shell.getShell().newJob().add(cmd).to(stdoutCallback, stderrCallback).exec()
+    // paperSU: 这里原来是 Shell.getShell() —— libsu 的【全局主 shell】，会触发它自己的
+    // su 探测（就是弹"需要下载完整版 Magisk"的那条路）。改成走我们自己的 getRootShell()。
+    val result = getRootShell().newJob().add(cmd).to(stdoutCallback, stderrCallback).exec()
     lkmFile?.delete()
     bootFile.delete()
     return FlashResult(result, false)
