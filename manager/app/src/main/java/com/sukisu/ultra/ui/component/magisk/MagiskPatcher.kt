@@ -18,7 +18,7 @@ package com.sukisu.ultra.ui.component.magisk
 
 import android.content.Context
 import android.util.Log
-import com.topjohnwu.superuser.Shell
+// paperSU: 不再依赖 libsu 的 Shell（它对 su 位置的探测在本机不成立）
 import java.io.File
 
 object MagiskPatcher {
@@ -32,22 +32,72 @@ object MagiskPatcher {
 
     fun workDir(ctx: Context): File = File(ctx.filesDir, ASSET_DIR)
 
-    /** 用 libsu 跑一条 root 命令，返回合并后的输出。 */
-    fun root(vararg cmds: String): String = runCatching {
-        val r = Shell.cmd(*cmds).exec()
-        val sb = StringBuilder()
-        r.out.forEach { sb.append(it).append('\n') }
-        if (r.code != 0) sb.append("(exit ").append(r.code).append(")\n")
-        sb.toString()
-    }.getOrElse { e ->
-        Log.w(TAG, "root command failed", e)
-        "libsu error: ${e.message}\n"
+    /**
+     * su 二进制的候选位置。
+     *
+     * paperSU: 这里踩过一个很坑的问题 —— libsu 只会在 /system/bin、/system/xbin、/sbin
+     * 这几个传统位置找 su，而 MIUI (Android 11) 上 Magisk 的 su 实际装在
+     * /product/bin/su。找不到时 libsu 不会报错，而是把状态标成"Magisk 未安装"，
+     * 于是管理器弹"需要下载完整版 Magisk" —— 明明 Magisk 30.7 装得好好的。
+     *
+     * 所以这里不再依赖 libsu 的探测：自己按候选表找，找不到再问 which。
+     */
+    private val SU_CANDIDATES = listOf(
+        "/product/bin/su",
+        "/system/bin/su",
+        "/system/xbin/su",
+        "/sbin/su",
+        "/debug_ramdisk/su",
+        "/magisk/.core/bin/su",
+    )
+
+    @Volatile
+    private var cachedSu: String? = null
+
+    /** 找到可执行的 su，找不到返回 null。结果会缓存。 */
+    fun findSu(): String? {
+        cachedSu?.let { if (File(it).canExecute()) return it }
+        for (c in SU_CANDIDATES) {
+            if (File(c).canExecute()) { cachedSu = c; return c }
+        }
+        val viaWhich = runCatching {
+            val p = ProcessBuilder("sh", "-c", "which su")
+                .redirectErrorStream(true).start()
+            val t = p.inputStream.bufferedReader().readText()
+            p.waitFor()
+            t.lineSequence().map { it.trim() }.firstOrNull { it.isNotEmpty() && File(it).canExecute() }
+        }.getOrNull()
+        if (viaWhich != null) cachedSu = viaWhich
+        Log.i(TAG, "findSu -> ${viaWhich ?: "none"}")
+        return viaWhich
+    }
+
+    /**
+     * 跑一条 root 命令，返回合并后的输出。
+     *
+     * paperSU: 不再走 libsu 的 Shell.cmd —— 它探测不到 su 时会弹自己的"下载 Magisk"
+     * 引导页，而不是把我们引到已有的 Magisk 上。直接 spawn 目标 su 才是确定的行为。
+     */
+    fun root(vararg cmds: String): String {
+        val su = findSu() ?: return "找不到 su 二进制（试过 ${SU_CANDIDATES.joinToString()}）\n"
+        return runCatching {
+            val p = ProcessBuilder(listOf(su, "-c", cmds.joinToString("\n")))
+                .redirectErrorStream(true)
+                .start()
+            val out = p.inputStream.bufferedReader().readText()
+            p.waitFor()
+            out
+        }.getOrElse { e ->
+            Log.w(TAG, "root command failed", e)
+            "su error: ${e.message}\n"
+        }
     }
 
     /** 有没有 root。 */
     fun hasRoot(): Boolean = runCatching {
-        val r = Shell.cmd("id").exec()
-        r.isSuccess && r.out.any { it.contains("uid=0") }
+        val out = root("id")
+        Log.i(TAG, "hasRoot: ${out.trim().take(120)}")
+        out.contains("uid=0")
     }.getOrDefault(false)
 
     /** Magisk 版本串，例如 "30.7:MAGISK:R"。 */
@@ -152,13 +202,14 @@ object MagiskPatcher {
         return outPath
     }
 
-    /** 用 libsu 跑一条【普通用户】命令（不需要 root）。 */
+    /** 跑一条【普通用户】命令（不需要 root）。同样不再走 libsu。 */
     fun plainShell(vararg cmds: String): String = runCatching {
-        val r = Shell.cmd(*cmds).exec()
-        buildString {
-            r.out.forEach { append(it).append('\n') }
-            if (r.code != 0) append("(exit ").append(r.code).append(")\n")
-        }
+        val p = ProcessBuilder(listOf("sh", "-c", cmds.joinToString("\n")))
+            .redirectErrorStream(true)
+            .start()
+        val out = p.inputStream.bufferedReader().readText()
+        p.waitFor()
+        out
     }.getOrElse { "shell error: ${it.message}\n" }
 
     /** 安装一个 Magisk 模块 zip（需要 root）。 */
@@ -207,7 +258,8 @@ object MagiskPatcher {
         //   引导（弹"需要下载完整版 Magisk"），而不是向已有的 Magisk 申请授权。
         //   直接 spawn 一个 su 进程才是让 Magisk 弹授权框的那条路。
         val raw = runCatching {
-            val p = ProcessBuilder("su", "-c", "id").redirectErrorStream(true).start()
+            val suBin = findSu() ?: "su"
+            val p = ProcessBuilder(suBin, "-c", "id").redirectErrorStream(true).start()
             val s = p.inputStream.bufferedReader().readText()
             p.waitFor()
             s.trim()
@@ -261,7 +313,8 @@ object MagiskPatcher {
             return true to "已有 root，已固化为永久"
         }
         val raw = runCatching {
-            val p = ProcessBuilder("su", "-c", "id").redirectErrorStream(true).start()
+            val suBin = findSu() ?: "su"
+            val p = ProcessBuilder(suBin, "-c", "id").redirectErrorStream(true).start()
             val s = p.inputStream.bufferedReader().readText()
             p.waitFor()
             s.trim()
