@@ -3,6 +3,7 @@ package com.sukisu.ultra
 import android.app.Application
 import android.content.pm.ApplicationInfo
 import android.os.Build
+import android.util.Log
 import android.os.UserManager
 import android.system.Os
 import androidx.lifecycle.ViewModelProvider
@@ -55,8 +56,24 @@ class KernelSUApplication : Application(), ViewModelStoreOwner {
             setEnableOnBackInvokedCallback(applicationInfo, enable)
         }
 
-        val superUserViewModel = ViewModelProvider(this)[SuperUserViewModel::class.java]
-        superUserViewModel.loadAppList()
+        // paperSU: 只有 KernelSU 真的在跑时才预加载超级用户列表。
+        //
+        // 这一段以前是无条件执行的，而 SuperUserRepositoryImpl 走的是 libsu 的
+        // RootService（IPC）。在没有 KernelSU 的机器上（内核 4.x + Magisk）它会去连
+        // Magisk，libsu 拿不到 root service，就弹出
+        // "需要下载完整版 Magisk 才能正常运行。开始下载?" —— 而且因为是在
+        // Application.onCreate 里发的，弹窗是在后台弹的，用户在任何界面（连文件管理器里）
+        // 都会看到，完全不知道是谁弹的。
+        //
+        // 而 Magisk 模式的超级用户页走的是 MagiskModeRoot 自己那套（直接读 magisk 的
+        // policies 表），压根不需要这个列表。所以这里按"KernelSU 是否在运行"分流。
+        val ksuRunning = runCatching { Natives.kernelUAPIVersion > 0 }.getOrDefault(false)
+        if (ksuRunning) {
+            val superUserViewModel = ViewModelProvider(this)[SuperUserViewModel::class.java]
+            superUserViewModel.loadAppList()
+        } else {
+            Log.i("paperSU", "KernelSU 未运行，跳过超级用户列表预加载（避免 libsu 弹下载 Magisk）")
+        }
 
         val webroot = File(dataDir, "webroot")
         if (!webroot.exists()) {
