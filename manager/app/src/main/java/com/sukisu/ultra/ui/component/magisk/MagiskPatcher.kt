@@ -169,6 +169,16 @@ object MagiskPatcher {
     fun removeModule(id: String): String =
         root("touch /data/adb/modules/$id/remove", "ls /data/adb/modules/$id/remove")
 
+    /**
+     * 某个 uid 现在到底是不是被授权的。写完策略表后用它复核一次 ——
+     * 只看命令返回码是不够的，magisk --sqlite 出错时也可能返回 0。
+     */
+    fun policyHasUid(uid: Int, allow: Boolean): Boolean = runCatching {
+        val out = root("magisk --sqlite \"SELECT uid FROM policies WHERE uid=$uid\"")
+        val has = out.contains("uid=$uid")
+        if (allow) has else !has
+    }.getOrDefault(false)
+
     /** 授予 / 撤销某个 uid 的 root。allow=true → policy=2，false → 删除该行。 */
     fun setUidPolicy(uid: Int, allow: Boolean): String = if (allow) {
         root("magisk --sqlite \"REPLACE INTO policies (uid,policy,until,logging,notification) VALUES ($uid,2,0,1,1)\"")
@@ -200,6 +210,8 @@ object MagiskPatcher {
         val ok = out.contains("uid=0") || raw.contains("uid=0")
         Log.i(TAG, "requestRoot -> ok=$ok")
         return ok to (if (out.contains("uid=0")) out.trim() else raw)
+    }
+
     // -----------------------------------------------------------------------
     // 授权 = 直接写 Magisk 的策略表，不让目标应用弹框
     //
@@ -251,4 +263,4 @@ object MagiskPatcher {
         }
         return false to raw
     }
-    }}
+    }

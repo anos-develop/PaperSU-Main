@@ -50,7 +50,7 @@ import kotlinx.coroutines.withContext
  * with no network. The account section is a placeholder for the developer's own backend and does
  * nothing until its endpoints are filled in.
  */
-private const val STORE_URL = "https://vip.adt.shdiv.net"
+private const val STORE_URL = "http://vip.adt.shdiv.net"
 private const val REKEY_URL = "https://vip-anos-rekey.adt.shdiv.net"
 
 @Composable

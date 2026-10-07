@@ -300,12 +300,15 @@ private fun HomePage(state: MagiskUiState, onReload: () -> Unit, onRequestRoot: 
 @Composable
 private fun SuperUserPage(ctx: Context, state: MagiskUiState, toast: String, onReload: () -> Unit) {
     var pending by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var failMsg by remember { mutableStateOf("") }
     PageColumn {
         Text("超级用户", style = MaterialTheme.typography.headlineSmall)
         Text("下面是你手机上所有有启动图标的应用。打开开关就是给它 root（写进 magisk 的授权表）。",
             style = MaterialTheme.typography.bodySmall)
         if (toast.isNotEmpty()) Text(toast, style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary)
+        if (failMsg.isNotEmpty()) Text(failMsg, style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error)
 
         for (app in state.apps) {
             val checked = if (app.uid in pending) !app.allowed else app.allowed
@@ -321,7 +324,16 @@ private fun SuperUserPage(ctx: Context, state: MagiskUiState, toast: String, onR
                     Switch(checked = checked, onCheckedChange = { want ->
                         pending = pending + app.uid
                         Thread {
-                            MagiskPatcher.setUidPolicy(app.uid, want)
+                            // paperSU: 写策略表的结果以前被丢掉了，写失败时开关只是
+                            // 悄悄弹回原位，看不出任何原因。现在把结果读出来重写一次，
+                            // 失败就让它留在 failMsg 里显示在页面上。
+                            val out = MagiskPatcher.setUidPolicy(app.uid, want)
+                            val wrote = MagiskPatcher.policyHasUid(app.uid, want)
+                            if (!wrote) {
+                                failMsg = "写策略表失败 uid=${app.uid}：${out.trim().take(200)}"
+                            } else {
+                                failMsg = ""
+                            }
                             Thread.sleep(250)
                             onReload()
                         }.start()
