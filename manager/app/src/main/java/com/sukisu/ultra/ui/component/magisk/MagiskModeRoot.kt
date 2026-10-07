@@ -299,7 +299,15 @@ private fun HomePage(state: MagiskUiState, onReload: () -> Unit, onRequestRoot: 
 
 @Composable
 private fun SuperUserPage(ctx: Context, state: MagiskUiState, toast: String, onReload: () -> Unit) {
-    var pending by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    // paperSU: busy 只用来在写入期间禁用开关，不再参与"显示什么"。
+    //
+    // 原来这里叫 pending，语义是"用户刚拨过、还没刷新的那些 uid"，
+    // 用它算出 checked = !app.allowed 做乐观显示。但 pending 只加不减，
+    // 碰过一次的 uid 会永远留在里面 ⇒ 那个开关从此【永久反相】：
+    //   拨到 ON → 表里 true → 显示 !true = OFF
+    //   拨到 OFF → 表里 false → 显示 !false = ON
+    // 表现就是"关闭不了"。现在 checked 直接取表里的真实值，不可能再反相。
+    var busy by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var failMsg by remember { mutableStateOf("") }
     PageColumn {
         Text("超级用户", style = MaterialTheme.typography.headlineSmall)
@@ -311,7 +319,6 @@ private fun SuperUserPage(ctx: Context, state: MagiskUiState, toast: String, onR
             color = MaterialTheme.colorScheme.error)
 
         for (app in state.apps) {
-            val checked = if (app.uid in pending) !app.allowed else app.allowed
             Card(Modifier.fillMaxWidth()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically) {
@@ -321,8 +328,11 @@ private fun SuperUserPage(ctx: Context, state: MagiskUiState, toast: String, onR
                         Text("uid=${app.uid}", style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Switch(checked = checked, onCheckedChange = { want ->
-                        pending = pending + app.uid
+                    Switch(
+                        checked = app.allowed,
+                        enabled = app.uid !in busy,
+                        onCheckedChange = { want ->
+                        busy = busy + app.uid
                         Thread {
                             // paperSU: 写策略表的结果以前被丢掉了，写失败时开关只是
                             // 悄悄弹回原位，看不出任何原因。现在把结果读出来重写一次，
@@ -334,10 +344,12 @@ private fun SuperUserPage(ctx: Context, state: MagiskUiState, toast: String, onR
                             } else {
                                 failMsg = ""
                             }
-                            Thread.sleep(250)
+                            Thread.sleep(150)
                             onReload()
+                            busy = busy - app.uid
                         }.start()
-                    })
+                        }
+                    )
                 }
             }
         }
