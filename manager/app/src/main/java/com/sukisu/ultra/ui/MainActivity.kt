@@ -156,6 +156,15 @@ class MainActivity : ComponentActivity() {
     private var splashStartedAt = 0L
     private val splashAnimationDurationMs = 500L
 
+    /**
+     * paperSU: 启动画面的硬超时。
+     *
+     * contentReady 由内容里的 SideEffect 置位；如果所处的运行模式在这台机器上组合不出内容
+     * （典型例子：内核 4.x 上把运行模式切成 KernelSU），它就永远不会置位，启动画面会永久
+     * 挂着。没有这道兜底时只能清 prefs 才能恢复。
+     */
+    private val splashHardTimeoutMs = 6_000L
+
 
     override fun attachBaseContext(newBase: android.content.Context) {
         super.attachBaseContext(com.sukisu.ultra.ui.util.LocaleHelper.wrap(newBase))
@@ -171,9 +180,18 @@ class MainActivity : ComponentActivity() {
         // 原来这里无条件等 contentReady，而 contentReady 由内容里的 SideEffect 置位，
         // 内容又起不来 —— 结果是启动画面永远挂着。Magisk 模式下只等那点动画时间。
         val magiskMode = EngineMode.current(this) == EngineMode.Mode.Magisk
+        // paperSU: 这里原来没有兜底。KernelSU 分支要等 contentReady，而 contentReady 是靠
+        // 内容里的 SideEffect 置位的 —— 内核 4.x 的机器上没有 KernelSU，那套以 ksud 为中心
+        // 的界面根本组合不出来，于是启动画面永久挂着。实测：在 K20 Pro 上把运行模式切成
+        // "KernelSU"，应用就再也起不来，必须清掉 engine.xml 的 mode_override 才能恢复。
+        // 现在加一道硬超时：无论什么原因，最多等 splashHardTimeoutMs 就必须放行。
         splashScreen.setKeepOnScreenCondition {
-            val animating = SystemClock.uptimeMillis() - splashStartedAt < splashAnimationDurationMs
-            if (magiskMode) animating else (!contentReady || animating)
+            val elapsed = SystemClock.uptimeMillis() - splashStartedAt
+            when {
+                elapsed < splashAnimationDurationMs -> true
+                elapsed > splashHardTimeoutMs -> false
+                else -> !magiskMode && !contentReady
+            }
         }
 
         // paperSU: apply hidden mode before anything reads Natives.isManager, otherwise a

@@ -66,6 +66,22 @@ object EngineMode {
             ).show()
             return
         }
+        // paperSU: 内核 4.x 上没有 KernelSU，切过去会硬卡死，所以不让切。
+        //
+        // KernelSU 那套界面靠 KsuCli 建 root shell，而 KsuCli 走 libsu：它会 spawn su 做自检。
+        // 4.x 机器上 su 是 Magisk 提供的，于是 Magisk 弹授权框、libsu 自检超时，报
+        // "Created process is not a shell"，libsu 据此判定"Magisk 未安装"并弹
+        // "需要下载完整版 Magisk"；同时界面内容组合不出来，只剩空白页。更糟的是
+        // engine.xml 里已经写下 mode_override=KernelSU，重启也回不来 ——
+        // 实测必须手动删掉那个 prefs 文件才能恢复。所以直接不让切。
+        if (mode == Mode.KernelSU && kernelMajor() in 1..4) {
+            android.widget.Toast.makeText(
+                ctx,
+                "本机内核 ${kernelRelease().substringBefore('-')} 没有 KernelSU，无法切到 KernelSU 模式",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            return
+        }
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply {
             if (mode == null) remove(KEY_OVERRIDE) else putString(KEY_OVERRIDE, mode.name)
         }.apply()
@@ -83,10 +99,15 @@ object EngineMode {
     /**
      * 最终生效的模式：手动覆盖优先，否则自动判定。
      *
-     * 但 Magisk 需要 Pro：没授权就退回 KernelSU，哪怕内核是 4.x。
-     * 用户在界面上会看到「Magisk 模式需要 Pro 授权」的说明，而不是一套用不了的界面。
+     * paperSU: 但对内核 4.x 会忽略"KernelSU"这个覆盖 —— 那种机器上没有 KernelSU，
+     * 走 KernelSU 界面会直接卡死（详见 setOverride 里的说明）。忽略而不是清掉，
+     * 是为了让已经卡在 mode_override=KernelSU 上的设备升级后能自己恢复。
      */
-    fun current(ctx: Context = ksuApp): Mode = override(ctx) ?: detect()
+    fun current(ctx: Context = ksuApp): Mode {
+        val wanted = override(ctx) ?: detect()
+        if (wanted == Mode.KernelSU && kernelMajor() in 1..4) return Mode.Magisk
+        return wanted
+    }
 
     /** 给界面用的一句话说明。 */
     fun explain(ctx: Context = ksuApp): String {
