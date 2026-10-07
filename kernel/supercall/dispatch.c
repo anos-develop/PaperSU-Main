@@ -61,9 +61,14 @@ static int do_get_info(void __user *arg)
     if (ksu_late_loaded) {
         cmd.flags |= KSU_GET_INFO_FLAG_LATE_LOAD;
     }
-#ifdef EXPECTED_SIZE2
-    cmd.flags |= KSU_GET_INFO_FLAG_PR_BUILD;
-#endif
+    /*
+     * paperSU: no PR flag here on purpose.
+     *
+     * Upstream treats a second accepted certificate as the mark of a pull request build and
+     * reports it as such, which made the manager show "this kernel contains PR signature
+     * support" on every paperSU build. Our second slot is not a test: it is the permanent
+     * paperSU manager certificate, so the kernel should not describe itself as a PR build.
+     */
     cmd.features = KSU_FEATURE_MAX;
     cmd.uapi_version = KERNEL_SU_UAPI_VERSION;
 
@@ -92,9 +97,14 @@ static int do_get_info_legacy(void __user *arg)
     if (ksu_late_loaded) {
         cmd.flags |= KSU_GET_INFO_FLAG_LATE_LOAD;
     }
-#ifdef EXPECTED_SIZE2
-    cmd.flags |= KSU_GET_INFO_FLAG_PR_BUILD;
-#endif
+    /*
+     * paperSU: no PR flag here on purpose.
+     *
+     * Upstream treats a second accepted certificate as the mark of a pull request build and
+     * reports it as such, which made the manager show "this kernel contains PR signature
+     * support" on every paperSU build. Our second slot is not a test: it is the permanent
+     * paperSU manager certificate, so the kernel should not describe itself as a PR build.
+     */
     cmd.features = KSU_FEATURE_MAX;
 
     if (copy_to_user(arg, &cmd, sizeof(cmd))) {
